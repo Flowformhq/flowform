@@ -1,21 +1,21 @@
-# FlowForge TypeScript SDK
+# FlowForm TypeScript SDK
 
-Zero-dependency TypeScript client for the FlowForge API. Uses the native `fetch` API.
+Zero-dependency TypeScript client for the FlowForm API. Uses the native `fetch` API.
 
 ## Installation
 
-Copy `flowforge.ts` into your project, or install from the repository:
+Copy `flowform.ts` into your project, or install from the repository:
 
 ```bash
-cp sdk/typescript/flowforge.ts src/lib/flowforge.ts
+cp sdk/typescript/flowform.ts src/lib/flowform.ts
 ```
 
 ## Quick Start
 
 ```typescript
-import { FlowForgeClient } from "./flowforge";
+import { FlowFormClient } from "./flowform";
 
-const client = new FlowForgeClient("http://localhost", "your-api-token");
+const client = new FlowFormClient("http://localhost", "your-api-token");
 
 // Fetch a form schema
 const { data: schema } = await client.getFormSchema("form-uuid-here");
@@ -37,10 +37,10 @@ await client.updateSubmission(submission.uuid, { status: "completed" });
 ### Constructor
 
 ```typescript
-new FlowForgeClient(baseUrl: string, token?: string)
+new FlowFormClient(baseUrl: string, token?: string)
 ```
 
-- `baseUrl` — Your FlowForge server URL (e.g. `http://localhost`)
+- `baseUrl` — Your FlowForm server URL (e.g. `http://localhost`)
 - `token` — Optional Sanctum bearer token for authenticated endpoints
 
 ### Public Endpoints (no token required)
@@ -66,15 +66,15 @@ new FlowForgeClient(baseUrl: string, token?: string)
 
 ### Error Handling
 
-All methods throw `FlowForgeError` on non-2xx responses:
+All methods throw `FlowFormError` on non-2xx responses:
 
 ```typescript
-import { FlowForgeError } from "./flowforge";
+import { FlowFormError } from "./flowform";
 
 try {
   await client.getForm("invalid-uuid");
 } catch (err) {
-  if (err instanceof FlowForgeError) {
+  if (err instanceof FlowFormError) {
     console.error(err.status); // 404
     console.error(err.body);   // { message: "Not Found" }
   }

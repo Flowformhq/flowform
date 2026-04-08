@@ -15,14 +15,14 @@
  */
 
 import {
-  FlowForgeClient,
+  FlowFormClient,
   type FieldState,
   type FormSchema,
   type Step,
-} from "../sdk/typescript/flowforge";
+} from "../sdk/typescript/flowform";
 
-const BASE_URL = process.env.FLOWFORGE_URL ?? "http://localhost";
-const TOKEN = process.env.FLOWFORGE_TOKEN ?? "your-api-token";
+const BASE_URL = process.env.FLOWFORM_URL ?? "http://localhost";
+const TOKEN = process.env.FLOWFORM_TOKEN ?? "your-api-token";
 
 // Simulated user input — in a real app this comes from form fields
 const MOCK_ANSWERS: Record<string, string> = {
@@ -35,7 +35,7 @@ const MOCK_ANSWERS: Record<string, string> = {
 };
 
 async function main() {
-  const client = new FlowForgeClient(BASE_URL, TOKEN);
+  const client = new FlowFormClient(BASE_URL, TOKEN);
 
   // 1. Load the form schema
   const { data: schema } = await client.getFormBySlug("onboarding");

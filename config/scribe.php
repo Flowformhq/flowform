@@ -11,14 +11,14 @@ use function Knuckles\Scribe\Config\removeStrategies;
 
 return [
     // The HTML <title> for the generated documentation.
-    'title' => 'FlowForge API Documentation',
+    'title' => 'FlowForm API Documentation',
 
     // A short description of your API. Will be included in the docs webpage, Postman collection and OpenAPI spec.
     'description' => 'Headless, API-first form and workflow engine for developers.',
 
     // Text to place in the "Introduction" section, right after the `description`. Markdown and HTML are supported.
     'intro_text' => <<<'INTRO'
-            FlowForge provides a RESTful API for building multi-step forms, collecting submissions, and evaluating conditional field logic — all without a coupled frontend.
+            FlowForm provides a RESTful API for building multi-step forms, collecting submissions, and evaluating conditional field logic — all without a coupled frontend.
 
             <aside>As you scroll, you'll see code examples for working with the API in different programming languages in the dark area to the right (or as part of the content on mobile).
             You can switch the language used with the tabs at the top right (or from the nav menu at the top left on mobile).</aside>

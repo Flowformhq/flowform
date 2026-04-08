@@ -28,7 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('FlowForge')
+            ->brandName('FlowForm')
             ->colors([
                 'primary' => Color::Indigo,
             ])

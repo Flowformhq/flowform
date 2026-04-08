@@ -1,8 +1,8 @@
-# FlowForge
+# FlowForm
 
 **Build workflows, not forms.**
 
-FlowForge is a headless, API-first form and workflow engine for developers. Define multi-step forms with conditional logic in the admin panel, then consume them via a clean REST API — no frontend coupling.
+FlowForm is a headless, API-first form and workflow engine for developers. Define multi-step forms with conditional logic in the admin panel, then consume them via a clean REST API — no frontend coupling.
 
 ## Features
 
@@ -19,8 +19,8 @@ FlowForge is a headless, API-first form and workflow engine for developers. Defi
 
 ```bash
 # Clone and install
-git clone https://github.com/wakqasahmed/flowforge.git
-cd flowforge
+git clone https://github.com/flowformhq/flowform.git
+cd flowform
 composer install
 
 # Configure environment
@@ -66,7 +66,7 @@ All endpoints are prefixed with `/api/v1/`.
 
 ### Authentication
 
-FlowForge uses [Laravel Sanctum](https://laravel.com/docs/sanctum) for API authentication. Generate a token:
+FlowForm uses [Laravel Sanctum](https://laravel.com/docs/sanctum) for API authentication. Generate a token:
 
 ```php
 $token = $user->createToken('my-app')->plainTextToken;
@@ -83,9 +83,9 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8000/api/v1/submissi
 A zero-dependency TypeScript client is included in [`sdk/typescript/`](sdk/typescript/).
 
 ```typescript
-import { FlowForgeClient } from "./flowforge";
+import { FlowFormClient } from "./flowform";
 
-const client = new FlowForgeClient("http://localhost:8000", "your-token");
+const client = new FlowFormClient("http://localhost:8000", "your-token");
 
 // Fetch form schema
 const { data: schema } = await client.getFormSchema("form-uuid");
@@ -108,7 +108,7 @@ See the [SDK README](sdk/typescript/README.md) for the full method reference.
 Run with:
 
 ```bash
-FLOWFORGE_URL=http://localhost:8000 FLOWFORGE_TOKEN=your-token npx tsx examples/simple-form.ts
+FLOWFORM_URL=http://localhost:8000 FLOWFORM_TOKEN=your-token npx tsx examples/simple-form.ts
 ```
 
 ## Tech Stack

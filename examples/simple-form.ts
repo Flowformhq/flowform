@@ -12,13 +12,13 @@
  *   npx tsx examples/simple-form.ts
  */
 
-import { FlowForgeClient } from "../sdk/typescript/flowforge";
+import { FlowFormClient } from "../sdk/typescript/flowform";
 
-const BASE_URL = process.env.FLOWFORGE_URL ?? "http://localhost";
-const TOKEN = process.env.FLOWFORGE_TOKEN ?? "your-api-token";
+const BASE_URL = process.env.FLOWFORM_URL ?? "http://localhost";
+const TOKEN = process.env.FLOWFORM_TOKEN ?? "your-api-token";
 
 async function main() {
-  const client = new FlowForgeClient(BASE_URL, TOKEN);
+  const client = new FlowFormClient(BASE_URL, TOKEN);
 
   // 1. Find the form
   const { data: form } = await client.getFormBySlug("contact-us");
@@ -41,7 +41,7 @@ async function main() {
   const { data: updated } = await client.storeValues(submission.uuid, [
     { field_code: "name", value: "Alice Johnson" },
     { field_code: "email", value: "alice@example.com" },
-    { field_code: "message", value: "Hello from FlowForge!" },
+    { field_code: "message", value: "Hello from FlowForm!" },
   ]);
   console.log("Values stored:", updated.values);
 

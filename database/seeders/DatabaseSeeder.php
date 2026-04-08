@@ -16,8 +16,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $user = User::factory()->create([
-            'name' => 'FlowForge Admin',
-            'email' => 'admin@flowforge.dev',
+            'name' => 'FlowForm Admin',
+            'email' => 'admin@flowform.dev',
         ]);
 
         $this->call(FieldTypeSeeder::class);

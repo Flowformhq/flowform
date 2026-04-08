@@ -1,5 +1,5 @@
-// FlowForge TypeScript SDK
-// Zero-dependency client for the FlowForge API
+// FlowForm TypeScript SDK
+// Zero-dependency client for the FlowForm API
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -113,19 +113,19 @@ export interface FieldValue {
 
 // ── Error ──────────────────────────────────────────────────────────────────
 
-export class FlowForgeError extends Error {
+export class FlowFormError extends Error {
   constructor(
     public status: number,
     public body: unknown,
   ) {
-    super(`FlowForge API error ${status}`);
-    this.name = "FlowForgeError";
+    super(`FlowForm API error ${status}`);
+    this.name = "FlowFormError";
   }
 }
 
 // ── Client ─────────────────────────────────────────────────────────────────
 
-export class FlowForgeClient {
+export class FlowFormClient {
   private baseUrl: string;
   private token: string | null;
 
@@ -238,7 +238,7 @@ export class FlowForgeClient {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
-      throw new FlowForgeError(response.status, errorBody);
+      throw new FlowFormError(response.status, errorBody);
     }
 
     return response.json() as Promise<T>;
