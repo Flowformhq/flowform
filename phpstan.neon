@@ -1,0 +1,47 @@
+includes:
+    - vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+        - tests
+
+    # Level 6 for app, but tests use Pest closures which PHPStan struggles with
+    level: 6
+
+    ignoreErrors:
+        # Pest closures bind to TestCase but PHPStan sees them as plain closures
+        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$\w+#'
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::(getJson|postJson|patchJson|actingAs|assertDatabaseHas|assertDatabaseMissing|assertJson|assertJsonPath|assertOk|assertNotFound|assertUnauthorized|assertUnprocessable|assertForbidden|assertStatus|assertExactJson|assertJsonFragment|assertJsonCount|assertJsonStructure|assertRedirect|assertSessionHas|assertSessionHasErrors|assertSessionDoesntHaveErrors|assertAuthenticated|assertGuest|assertViewHas|assertViewIs|assertViewMissing|assertCookie|assertPlainCookie|assertCookieExpired|assertCookieNotExpired|assertCookieMissing|assertHeader|assertHeaderMissing|assertSoftDeleted|assertNotSoftDeleted|assertModelExists|assertModelMissing|assertDatabaseEmpty|assertDatabaseCount|travelTo|travelBack|freezeTime|unfreezeTime|withHeader|withHeaders|withCookie|withCookies|withServerVariables|withoutMiddleware|followingRedirects|from|dump|dd|seeInConsoleOutput|dontSeeInConsoleOutput)\(\)#'
+
+        # Pest helper functions that PHPStan doesn't understand
+        - '#Function (beforeEach|afterEach|beforeAll|afterAll|dataset|uses|test|it|expect|describe|given|when|then|throws|skip|markTestSkipped|group|only|todo|cover|uses|pest|dd|dump|ray) not found#'
+
+        # Pest.php helper functions
+        - '#Function something not found#'
+
+        # Allow generic Collection types to be inferred by Larastan
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder<.*>::#'
+
+        # Filament forms use dynamic method calls
+        - '#Call to an undefined method Filament\\Forms\\Components\\.+::#'
+        - '#Call to an undefined method Filament\\Tables\\Actions\\.+::#'
+        - '#Call to an undefined method Filament\\Tables\\Columns\\.+::#'
+        - '#Call to an undefined method Filament\\Tables\\Filters\\.+::#'
+        - '#Call to an undefined method Filament\\Tables\\Grouping\\.+::#'
+
+        # API Resources access model properties dynamically; add @property docblocks later
+        - '#Access to an undefined property App\\Models\\.+::\$\w+ in file app/Http/Resources/Api/#'
+
+        # Pest expectations are dynamic
+        - '#Call to an undefined method Pest\\Expectation<.*>::#'
+        - '#Call to an undefined method Pest\\Support\\Expectation<.*>::#'
+
+    excludePaths:
+        - routes
+        - bootstrap/cache
+        - storage
+        - vendor
+
+    databaseMigrationsPath:
+        - database/migrations

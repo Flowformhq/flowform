@@ -134,4 +134,11 @@ php artisan scribe:generate
 
 ## License
 
-Open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The FlowForm engine is dual-licensed:
+
+- **AGPLv3-or-later** for open-source use. See [LICENSE](LICENSE).
+- **Commercial license** available for organizations that cannot accept AGPLv3. Contact licensing@flowformhq.com.
+
+Starter kits and the TypeScript SDK are licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+See [LICENSE-PROMISE.md](LICENSE-PROMISE.md) for our commitment to keeping the engine open.

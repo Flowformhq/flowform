@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -29,22 +32,22 @@ class Form extends Model
         });
     }
 
-    public function steps()
+    public function steps(): HasMany
     {
         return $this->hasMany(Step::class)->orderBy('step_number');
     }
 
-    public function fields()
+    public function fields(): HasMany
     {
         return $this->hasMany(Field::class)->orderBy('order');
     }
 
-    public function entities()
+    public function entities(): HasMany
     {
         return $this->hasMany(Entity::class);
     }
 
-    public function submissions()
+    public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);
     }

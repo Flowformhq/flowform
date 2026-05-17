@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -10,6 +12,7 @@ use App\Models\Field;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Models\SubmissionValue;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -33,7 +36,7 @@ class SubmissionController extends Controller
      * @response 201 scenario="created" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z"}}
      * @response 422 scenario="invalid form" {"message":"The selected form uuid is invalid.","errors":{"form_uuid":["The selected form uuid is invalid."]}}
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
             'form_uuid' => ['required', 'string', Rule::exists('forms', 'uuid')],
@@ -64,7 +67,7 @@ class SubmissionController extends Controller
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z","values":{"email":"user@example.com","name":"Alice"}}}
      * @response 404 scenario="not found" {"message":"Not Found"}
      */
-    public function show(string $uuid)
+    public function show(string $uuid): SubmissionDetailResource
     {
         $submission = Submission::where('uuid', $uuid)
             ->with(['form', 'values.field'])
@@ -87,7 +90,7 @@ class SubmissionController extends Controller
      *
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"completed","current_step":1,"progress_percentage":100,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z"}}
      */
-    public function update(string $uuid, Request $request)
+    public function update(string $uuid, Request $request): SubmissionResource
     {
         $submission = Submission::where('uuid', $uuid)->firstOrFail();
 
@@ -118,7 +121,7 @@ class SubmissionController extends Controller
      *
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z","values":{"email":"user@example.com"}}}
      */
-    public function storeValues(string $uuid, Request $request)
+    public function storeValues(string $uuid, Request $request): SubmissionDetailResource
     {
         $submission = Submission::where('uuid', $uuid)->firstOrFail();
 
@@ -161,7 +164,7 @@ class SubmissionController extends Controller
      * @response 200 scenario="advanced" {"current_step":2}
      * @response 422 scenario="last step" {"message":"Already on the last step."}
      */
-    public function advance(string $uuid)
+    public function advance(string $uuid): JsonResponse
     {
         $submission = Submission::where('uuid', $uuid)->firstOrFail();
 
@@ -184,7 +187,7 @@ class SubmissionController extends Controller
      * @response 200 scenario="retreated" {"current_step":1}
      * @response 422 scenario="first step" {"message":"Already on the first step."}
      */
-    public function retreat(string $uuid)
+    public function retreat(string $uuid): JsonResponse
     {
         $submission = Submission::where('uuid', $uuid)->firstOrFail();
 
@@ -207,7 +210,7 @@ class SubmissionController extends Controller
      *
      * @response 200 scenario="success" {"data":[{"field_id":1,"field_code":"email","is_visible":true,"is_required":true},{"field_id":2,"field_code":"company","is_visible":false,"is_required":false}]}
      */
-    public function conditions(string $uuid)
+    public function conditions(string $uuid): JsonResponse
     {
         $submission = Submission::where('uuid', $uuid)
             ->with(['form.fields.conditions', 'values'])

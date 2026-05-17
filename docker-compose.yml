@@ -1,0 +1,38 @@
+services:
+  flowform:
+    build: .
+    ports:
+      - "${FLOWFORM_PORT:-8000}:80"
+    environment:
+      APP_NAME: ${APP_NAME:-FlowForm}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      DB_CONNECTION: ${DB_CONNECTION:-sqlite}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-}
+      DB_DATABASE: ${DB_DATABASE:-/var/www/html/database/database.sqlite}
+      DB_USERNAME: ${DB_USERNAME:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      CACHE_STORE: ${CACHE_STORE:-file}
+      SESSION_DRIVER: ${SESSION_DRIVER:-file}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      FLOWFORM_TELEMETRY_ENABLED: ${FLOWFORM_TELEMETRY_ENABLED:-true}
+      FLOWFORM_TELEMETRY_ENDPOINT: ${FLOWFORM_TELEMETRY_ENDPOINT:-https://telemetry.flowformhq.com/api/v1/ping}
+    volumes:
+      - flowform_storage:/var/www/html/storage
+      - flowform_db:/var/www/html/database
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/v1/forms"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  flowform_storage:
+  flowform_db:

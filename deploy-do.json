@@ -1,0 +1,26 @@
+{
+  "name": "flowform",
+  "services": [
+    {
+      "github": {
+        "repo": "flowformhq/flowform",
+        "branch": "main"
+      },
+      "name": "flowform-web",
+      "run_command": "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf",
+      "environment_slug": "php",
+      "envs": [
+        { "key": "APP_ENV", "value": "production" },
+        { "key": "APP_DEBUG", "value": "false" },
+        { "key": "DB_CONNECTION", "value": "sqlite" },
+        { "key": "LOG_CHANNEL", "value": "stderr" },
+        { "key": "CACHE_STORE", "value": "file" },
+        { "key": "SESSION_DRIVER", "value": "file" },
+        { "key": "QUEUE_CONNECTION", "value": "database" }
+      ],
+      "health_check": {
+        "http_path": "/api/v1/forms"
+      }
+    }
+  ]
+}

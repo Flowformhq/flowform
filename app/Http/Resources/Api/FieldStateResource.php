@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Api;
 
 use App\Services\FieldState;
@@ -16,6 +18,9 @@ class FieldStateResource extends JsonResource
         parent::__construct($state);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         return [

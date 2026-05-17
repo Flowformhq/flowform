@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Forms;
 
 use App\Filament\Resources\Forms\Pages\CreateForm;

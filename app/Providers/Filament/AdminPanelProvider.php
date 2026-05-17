@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers\Filament;
 
 use Filament\Http\Middleware\Authenticate;
@@ -55,6 +57,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->renderHook(
+                'panels::auth.login.form.after',
+                fn (): string => view('auth.social-login')->render(),
+            );
     }
 }

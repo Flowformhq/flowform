@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Condition extends Model
 {
@@ -14,12 +17,12 @@ class Condition extends Model
         'action',
     ];
 
-    public function field()
+    public function field(): BelongsTo
     {
         return $this->belongsTo(Field::class);
     }
 
-    public function dependsOnField()
+    public function dependsOnField(): BelongsTo
     {
         return $this->belongsTo(Field::class, 'depends_on_field_id');
     }

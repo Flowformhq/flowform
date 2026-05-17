@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Fields;
 
 use App\Filament\Resources\Fields\Pages\CreateField;

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SubmissionValue extends Model
 {
@@ -13,17 +16,17 @@ class SubmissionValue extends Model
         'value',
     ];
 
-    public function submission()
+    public function submission(): BelongsTo
     {
         return $this->belongsTo(Submission::class);
     }
 
-    public function field()
+    public function field(): BelongsTo
     {
         return $this->belongsTo(Field::class);
     }
 
-    public function entityRecord()
+    public function entityRecord(): BelongsTo
     {
         return $this->belongsTo(EntityRecord::class);
     }

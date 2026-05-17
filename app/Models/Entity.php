@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Entity extends Model
 {
@@ -17,12 +21,12 @@ class Entity extends Model
         'is_repeatable' => 'boolean',
     ];
 
-    public function form()
+    public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
     }
 
-    public function records()
+    public function records(): HasMany
     {
         return $this->hasMany(EntityRecord::class);
     }

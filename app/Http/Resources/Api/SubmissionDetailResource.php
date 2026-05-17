@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\Api;
 
 use Illuminate\Http\Request;
@@ -7,6 +9,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class SubmissionDetailResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         // Build field_code => value map from loaded values

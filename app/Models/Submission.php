@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Services\ConditionEvaluator;
 use App\Services\ConditionResolver;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Submission extends Model
@@ -30,17 +34,17 @@ class Submission extends Model
         });
     }
 
-    public function form()
+    public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
     }
 
-    public function values()
+    public function values(): HasMany
     {
         return $this->hasMany(SubmissionValue::class);
     }
 
-    public function entityRecords()
+    public function entityRecords(): HasMany
     {
         return $this->hasMany(EntityRecord::class);
     }
