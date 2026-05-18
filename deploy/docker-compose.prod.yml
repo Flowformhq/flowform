@@ -1,0 +1,77 @@
+services:
+  # Static sites (marketing + docs)
+  flowform-static:
+    image: nginx:alpine
+    container_name: flowform-static
+    restart: unless-stopped
+    volumes:
+      - ./marketing:/usr/share/nginx/html/marketing:ro
+      - ./docs:/usr/share/nginx/html/docs:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+
+      # Marketing site: flowformhq.com
+      - "traefik.http.routers.flowform-marketing.rule=Host(`flowformhq.com`)"
+      - "traefik.http.routers.flowform-marketing.entrypoints=websecure"
+      - "traefik.http.routers.flowform-marketing.tls.certresolver=le"
+      - "traefik.http.routers.flowform-marketing.service=flowform-marketing"
+      - "traefik.http.services.flowform-marketing.loadbalancer.server.port=80"
+
+      # Docs site: docs.flowformhq.com
+      - "traefik.http.routers.flowform-docs.rule=Host(`docs.flowformhq.com`)"
+      - "traefik.http.routers.flowform-docs.entrypoints=websecure"
+      - "traefik.http.routers.flowform-docs.tls.certresolver=le"
+      - "traefik.http.routers.flowform-docs.service=flowform-docs"
+      - "traefik.http.services.flowform-docs.loadbalancer.server.port=80"
+
+      # HTTP → HTTPS redirect for marketing
+      - "traefik.http.routers.flowform-marketing-http.rule=Host(`flowformhq.com`)"
+      - "traefik.http.routers.flowform-marketing-http.entrypoints=web"
+      - "traefik.http.routers.flowform-marketing-http.middlewares=redirect-to-https@docker"
+
+      # HTTP → HTTPS redirect for docs
+      - "traefik.http.routers.flowform-docs-http.rule=Host(`docs.flowformhq.com`)"
+      - "traefik.http.routers.flowform-docs-http.entrypoints=web"
+      - "traefik.http.routers.flowform-docs-http.middlewares=redirect-to-https@docker"
+
+  # FlowForm engine (demo)
+  # Image is pre-built in CI and loaded via 'docker load' on the VPS.
+  # To build locally instead, replace 'image:' with:
+  #   build:
+  #     context: ../
+  #     dockerfile: Dockerfile
+  flowform-engine:
+    image: flowform-engine:latest
+    container_name: flowform-engine
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - engine-storage:/var/www/html/storage
+      - engine-cache:/var/www/html/bootstrap/cache
+    networks:
+      - traefik-public
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flowform-engine.rule=Host(`demo.flowformhq.com`)"
+      - "traefik.http.routers.flowform-engine.entrypoints=websecure"
+      - "traefik.http.routers.flowform-engine.tls.certresolver=le"
+      - "traefik.http.routers.flowform-engine.service=flowform-engine"
+      - "traefik.http.services.flowform-engine.loadbalancer.server.port=80"
+      - "traefik.http.routers.flowform-engine-http.rule=Host(`demo.flowformhq.com`)"
+      - "traefik.http.routers.flowform-engine-http.entrypoints=web"
+      - "traefik.http.routers.flowform-engine-http.middlewares=redirect-to-https@docker"
+
+volumes:
+  engine-storage:
+  engine-cache:
+
+networks:
+  traefik-public:
+    external: true
+  backend:
+    external: true
