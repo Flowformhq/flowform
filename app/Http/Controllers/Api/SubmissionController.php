@@ -20,7 +20,8 @@ use Illuminate\Validation\Rule;
  * @group Submissions
  *
  * Endpoints for creating and managing form submissions.
- * All endpoints require authentication via Bearer token.
+ * All endpoints are public — no Bearer token required.
+ * Submissions on inactive forms are rejected with 422.
  */
 class SubmissionController extends Controller
 {
@@ -28,18 +29,17 @@ class SubmissionController extends Controller
      * Create a submission
      *
      * Creates a new draft submission for the given form. The submission starts at step 1.
-     *
-     * @authenticated
+     * No authentication required — the form must be active.
      *
      * @bodyParam form_uuid string required The UUID of the form to submit against. Example: 9e1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
      *
      * @response 201 scenario="created" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z"}}
-     * @response 422 scenario="invalid form" {"message":"The selected form uuid is invalid.","errors":{"form_uuid":["The selected form uuid is invalid."]}}
+     * @response 422 scenario="invalid or inactive form" {"message":"The selected form uuid is invalid.","errors":{"form_uuid":["The selected form uuid is invalid."]}}
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'form_uuid' => ['required', 'string', Rule::exists('forms', 'uuid')],
+            'form_uuid' => ['required', 'string', Rule::exists('forms', 'uuid')->where('is_active', true)],
         ]);
 
         $form = Form::where('uuid', $data['form_uuid'])->firstOrFail();
@@ -60,8 +60,6 @@ class SubmissionController extends Controller
      *
      * Returns a submission with its current field values as a key-value map (field_code → value).
      *
-     * @authenticated
-     *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z","values":{"email":"user@example.com","name":"Alice"}}}
@@ -80,8 +78,6 @@ class SubmissionController extends Controller
      * Update submission
      *
      * Updates the submission status and/or meta data.
-     *
-     * @authenticated
      *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
@@ -110,8 +106,6 @@ class SubmissionController extends Controller
      *
      * Upserts field values for a submission. If a value for a field already exists, it is updated.
      * Fields are identified by their `code` (not ID).
-     *
-     * @authenticated
      *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
@@ -157,8 +151,6 @@ class SubmissionController extends Controller
      *
      * Moves the submission to the next step. Returns 422 if already on the last step.
      *
-     * @authenticated
-     *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
      * @response 200 scenario="advanced" {"current_step":2}
@@ -179,8 +171,6 @@ class SubmissionController extends Controller
      * Retreat step
      *
      * Moves the submission back to the previous step. Returns 422 if already on the first step.
-     *
-     * @authenticated
      *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
@@ -203,8 +193,6 @@ class SubmissionController extends Controller
      *
      * Evaluates all field conditions for a submission based on its current values.
      * Returns the visibility and required state of each field.
-     *
-     * @authenticated
      *
      * @urlParam uuid string required The UUID of the submission. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
      *
