@@ -31,9 +31,16 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('FlowForm')
+            ->brandLogo(fn () => view('filament.admin.logo'))
+            ->brandLogoHeight('2.25rem')
+            ->favicon(asset('brand/flowform-icon.svg'))
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::Cyan,
+                'gray' => Color::Slate,
             ])
+            ->font('Inter')
+            ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -58,6 +65,10 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
+            ->renderHook(
+                'panels::head.done',
+                fn (): string => view('filament.admin.styles')->render(),
+            )
             ->renderHook(
                 'panels::auth.login.form.after',
                 fn (): string => view('auth.social-login')->render(),

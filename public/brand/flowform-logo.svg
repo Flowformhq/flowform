@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 48" fill="none">
+  <defs>
+    <linearGradient id="flowGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <rect x="4" y="4" width="40" height="40" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+  <path d="M14 18C14 15.7909 15.7909 14 18 14H30C32.2091 14 34 15.7909 34 18C34 20.2091 32.2091 22 30 22H18C15.7909 22 14 23.7909 14 26C14 28.2091 15.7909 30 18 30H30" stroke="url(#flowGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="30" cy="30" r="2.5" fill="#06b6d4" />
+  <!-- Wordmark -->
+  <text x="56" y="31" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="21" font-weight="800" fill="#f8fafc" letter-spacing="-0.03em">
+    Flow<tspan fill="#06b6d4">Form</tspan>
+  </text>
+  <rect x="160" y="16" width="38" height="16" rx="4" fill="#1e293b" />
+  <text x="166" y="28" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="700" fill="#94a3b8" letter-spacing="0.05em">v1.0</text>
+</svg>
