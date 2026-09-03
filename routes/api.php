@@ -10,6 +10,15 @@ Route::prefix('v1')->group(function () {
         Route::get('forms/{uuid}/schema', [FormController::class, 'schema']);
         Route::get('forms/{slug}/by-slug', [FormController::class, 'showBySlug']);
         Route::get('forms/{uuid}', [FormController::class, 'show']);
+
+        // Public / Guest Submissions for active forms
+        Route::post('public/submissions', [SubmissionController::class, 'store']);
+        Route::get('public/submissions/{uuid}', [SubmissionController::class, 'show']);
+        Route::patch('public/submissions/{uuid}', [SubmissionController::class, 'update']);
+        Route::post('public/submissions/{uuid}/values', [SubmissionController::class, 'storeValues']);
+        Route::post('public/submissions/{uuid}/advance', [SubmissionController::class, 'advance']);
+        Route::post('public/submissions/{uuid}/retreat', [SubmissionController::class, 'retreat']);
+        Route::get('public/submissions/{uuid}/conditions', [SubmissionController::class, 'conditions']);
     });
 
     Route::middleware(['auth:sanctum', 'throttle:api-auth'])->group(function () {

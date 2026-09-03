@@ -1,16 +1,70 @@
 // FlowForm TypeScript SDK
-// Zero-dependency client for the FlowForm API
+// Zero dependencies — uses native fetch.
 
-// ── Types ──────────────────────────────────────────────────────────────────
+export interface PaginatedResponse<T> {
+  data: T[];
+  links: {
+    first: string | null;
+    last: string | null;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    path: string;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}
+
+export interface ApiResponse<T> {
+  data: T;
+}
 
 export interface Form {
   uuid: string;
   name: string;
-  slug: string | null;
+  slug: string;
   description: string | null;
-  is_active: boolean;
+  is_active: boolean | number;
   version: number;
   created_at: string;
+}
+
+export interface FormSchema {
+  uuid: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  steps: Step[];
+}
+
+export interface Step {
+  id: number;
+  step_number: number;
+  title: string;
+  description: string | null;
+  is_visible: boolean;
+  meta: Record<string, unknown> | null;
+  fields: Field[];
+}
+
+export interface Field {
+  id: number;
+  code: string;
+  label: string;
+  placeholder: string | null;
+  description: string | null;
+  is_required: boolean;
+  is_repeatable: boolean;
+  order: number;
+  config?: Record<string, unknown> | null;
+  field_type: FieldType;
+  options: FieldOption[];
+  conditions?: Condition[];
 }
 
 export interface FieldType {
@@ -25,46 +79,10 @@ export interface FieldOption {
 }
 
 export interface Condition {
-  depends_on_field_code: string | null;
+  source_field_code: string;
   operator: string;
-  value: string | null;
+  target_value: string | null;
   action: string;
-}
-
-export interface Field {
-  id: number;
-  code: string;
-  label: string;
-  placeholder: string | null;
-  description: string | null;
-  is_required: boolean;
-  is_repeatable: boolean;
-  order: number;
-  field_type: FieldType;
-  options: FieldOption[];
-  conditions: Condition[];
-}
-
-export interface Step {
-  id: number;
-  step_number: number;
-  title: string;
-  description: string | null;
-  is_visible: boolean;
-  meta: Record<string, unknown> | null;
-  fields: Field[];
-}
-
-export interface Entity {
-  id: number;
-  name: string;
-  label: string;
-  is_repeatable: boolean;
-}
-
-export interface FormSchema extends Form {
-  steps: Step[];
-  entities: Entity[];
 }
 
 export interface Submission {
@@ -80,6 +98,15 @@ export interface SubmissionDetail extends Submission {
   values: Record<string, string | null>;
 }
 
+export interface FieldValue {
+  field_code: string;
+  value: string | null;
+}
+
+export interface StepResponse {
+  current_step: number;
+}
+
 export interface FieldState {
   field_id: number;
   field_code: string;
@@ -87,59 +114,25 @@ export interface FieldState {
   is_required: boolean;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-  };
-  links: Record<string, string | null>;
-}
-
-export interface ApiResponse<T> {
-  data: T;
-}
-
-export interface StepResponse {
-  current_step: number;
-}
-
-export interface FieldValue {
-  field_code: string;
-  value: string | null;
-}
-
-// ── Error ──────────────────────────────────────────────────────────────────
-
 export class FlowFormError extends Error {
   constructor(
     public status: number,
     public body: unknown,
   ) {
-    super(`FlowForm API error ${status}`);
+    super(`FlowForm API error [${status}]: ${JSON.stringify(body)}`);
     this.name = "FlowFormError";
   }
 }
 
-// ── Client ─────────────────────────────────────────────────────────────────
-
 export class FlowFormClient {
-  private baseUrl: string;
-  private token: string | null;
-
-  constructor(baseUrl: string, token?: string) {
+  constructor(
+    private baseUrl: string,
+    private token?: string,
+  ) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
-    this.token = token ?? null;
   }
 
-  /** Update the bearer token (e.g. after login). */
-  setToken(token: string): void {
-    this.token = token;
-  }
-
-  // ── Forms (public) ────────────────────────────────────────────────────
+  // ── Public endpoints ──────────────────────────────────────────────────
 
   /** List active forms (paginated). */
   async getForms(page = 1): Promise<PaginatedResponse<Form>> {
@@ -156,35 +149,35 @@ export class FlowFormClient {
     return this.request("GET", `/api/v1/forms/${slug}/by-slug`);
   }
 
-  /** Get the full form schema (steps, fields, options, conditions, entities). */
+  /** Get the complete form schema (steps, fields, options, conditions). */
   async getFormSchema(uuid: string): Promise<ApiResponse<FormSchema>> {
     return this.request("GET", `/api/v1/forms/${uuid}/schema`);
   }
 
-  // ── Submissions (authenticated) ──────────────────────────────────────
+  // ── Submission endpoints (Smart Routing: Token or Public) ─────────────
 
-  /** Create a new draft submission for a form. */
-  async createSubmission(
-    formUuid: string,
-  ): Promise<ApiResponse<Submission>> {
-    return this.request("POST", "/api/v1/submissions", {
-      form_uuid: formUuid,
-    });
+  /** Create a new draft submission. Uses public endpoint if no token is configured. */
+  async createSubmission(formUuid: string): Promise<ApiResponse<Submission>> {
+    const endpoint = this.token ? "/api/v1/submissions" : "/api/v1/public/submissions";
+    return this.request("POST", endpoint, { form_uuid: formUuid });
   }
 
-  /** Get a submission with its current values. */
-  async getSubmission(
-    uuid: string,
-  ): Promise<ApiResponse<SubmissionDetail>> {
-    return this.request("GET", `/api/v1/submissions/${uuid}`);
+  /** Get submission details by UUID. */
+  async getSubmission(uuid: string): Promise<ApiResponse<SubmissionDetail>> {
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}` : `/api/v1/public/submissions/${uuid}`;
+    return this.request("GET", endpoint);
   }
 
-  /** Update submission status and/or meta. */
+  /** Update submission status or meta. */
   async updateSubmission(
     uuid: string,
-    data: { status?: string; meta?: Record<string, unknown> },
+    data: {
+      status?: "draft" | "completed" | "abandoned";
+      meta?: Record<string, unknown>;
+    },
   ): Promise<ApiResponse<Submission>> {
-    return this.request("PATCH", `/api/v1/submissions/${uuid}`, data);
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}` : `/api/v1/public/submissions/${uuid}`;
+    return this.request("PATCH", endpoint, data);
   }
 
   /** Upsert field values for a submission. */
@@ -192,26 +185,30 @@ export class FlowFormClient {
     uuid: string,
     values: FieldValue[],
   ): Promise<ApiResponse<SubmissionDetail>> {
-    return this.request("POST", `/api/v1/submissions/${uuid}/values`, {
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}/values` : `/api/v1/public/submissions/${uuid}/values`;
+    return this.request("POST", endpoint, {
       values,
     });
   }
 
   /** Advance the submission to the next step. */
   async advanceStep(uuid: string): Promise<StepResponse> {
-    return this.request("POST", `/api/v1/submissions/${uuid}/advance`);
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}/advance` : `/api/v1/public/submissions/${uuid}/advance`;
+    return this.request("POST", endpoint);
   }
 
   /** Retreat the submission to the previous step. */
   async retreatStep(uuid: string): Promise<StepResponse> {
-    return this.request("POST", `/api/v1/submissions/${uuid}/retreat`);
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}/retreat` : `/api/v1/public/submissions/${uuid}/retreat`;
+    return this.request("POST", endpoint);
   }
 
   /** Evaluate conditional field visibility/required states. */
   async getConditions(
     uuid: string,
   ): Promise<ApiResponse<FieldState[]>> {
-    return this.request("GET", `/api/v1/submissions/${uuid}/conditions`);
+    const endpoint = this.token ? `/api/v1/submissions/${uuid}/conditions` : `/api/v1/public/submissions/${uuid}/conditions`;
+    return this.request("GET", endpoint);
   }
 
   // ── Internal ─────────────────────────────────────────────────────────
