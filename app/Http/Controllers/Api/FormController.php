@@ -35,7 +35,8 @@ class FormController extends Controller
     /**
      * Get form by UUID
      *
-     * Returns a single form identified by its UUID.
+     * Returns a single active form identified by its UUID.
+     * Inactive forms return 404.
      *
      * @urlParam uuid string required The UUID of the form. Example: 9e1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
      *
@@ -44,7 +45,7 @@ class FormController extends Controller
      */
     public function show(string $uuid): FormResource
     {
-        $form = Form::where('uuid', $uuid)->firstOrFail();
+        $form = Form::where('uuid', $uuid)->active()->firstOrFail();
 
         return new FormResource($form);
     }
@@ -71,6 +72,7 @@ class FormController extends Controller
      *
      * Returns the complete form schema including steps, fields, field types, options, conditions, and entities.
      * This is the primary endpoint for rendering a form on the frontend.
+     * Only active forms are served; inactive forms return 404.
      *
      * @urlParam uuid string required The UUID of the form. Example: 9e1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
      *
@@ -80,6 +82,7 @@ class FormController extends Controller
     public function schema(string $uuid): FormSchemaResource
     {
         $form = Form::where('uuid', $uuid)
+            ->active()
             ->with([
                 'steps.fields.fieldType',
                 'steps.fields.options',
