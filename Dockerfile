@@ -1,9 +1,12 @@
-FROM php:8.3-fpm-alpine AS base
+FROM php:8.4-fpm-alpine AS base
 
 RUN apk add --no-cache \
     nginx \
     supervisor \
     sqlite-libs \
+    sqlite-dev \
+    postgresql-dev \
+    icu-dev \
     libpng-dev \
     oniguruma-dev \
     libzip-dev \
@@ -14,6 +17,7 @@ RUN apk add --no-cache \
 
 RUN docker-php-ext-install \
     pdo_sqlite \
+    intl \
     pdo_mysql \
     pdo_pgsql \
     mbstring \
