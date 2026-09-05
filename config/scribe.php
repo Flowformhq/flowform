@@ -7,6 +7,17 @@ use Knuckles\Scribe\Extracting\Strategies;
 use function Knuckles\Scribe\Config\configureStrategy;
 use function Knuckles\Scribe\Config\removeStrategies;
 
+// Scribe is a dev-only dependency (see require-dev in composer.json). Laravel
+// loads every file in config/ during boot, and the array below evaluates Scribe's
+// own symbols (AuthIn, Defaults, Strategies, configureStrategy). Without this
+// guard, a production install (`composer install --no-dev`) fatals on boot with
+// `Class "Knuckles\Scribe\Config\AuthIn" not found` before it can serve a request.
+// Scribe never reads this config when it is not installed, so returning an empty
+// array is safe.
+if (! class_exists(AuthIn::class)) {
+    return [];
+}
+
 // Only the most common configs are shown. See the https://scribe.knuckles.wtf/laravel/reference/config for all.
 
 return [
