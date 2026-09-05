@@ -77,3 +77,52 @@ test('form endpoints are accessible without a bearer token', function () {
     $this->getJson("/api/v1/forms/{$form->uuid}")->assertOk();
     $this->getJson("/api/v1/forms/{$form->uuid}/schema")->assertOk();
 });
+
+test('GET /api/v1/forms/{uuid} returns 404 for an inactive form', function () {
+    $form = Form::create(['name' => 'Withdrawn Form', 'is_active' => false]);
+
+    $this->getJson("/api/v1/forms/{$form->uuid}")
+        ->assertNotFound();
+});
+
+test('GET /api/v1/forms/{uuid}/schema returns 404 for an inactive form', function () {
+    $form = Form::create(['name' => 'Withdrawn Schema', 'is_active' => false]);
+    $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step One']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id,
+        'step_id' => $step->id,
+        'field_type_id' => $ft->id,
+        'code' => 'secret_field',
+        'label' => 'Internal only',
+        'order' => 1,
+    ]);
+
+    $this->getJson("/api/v1/forms/{$form->uuid}/schema")
+        ->assertNotFound();
+});
+
+test('GET /api/v1/forms/{slug}/by-slug returns 404 for an inactive form', function () {
+    Form::create(['name' => 'Withdrawn Slug', 'slug' => 'withdrawn-slug', 'is_active' => false]);
+
+    $this->getJson('/api/v1/forms/withdrawn-slug/by-slug')
+        ->assertNotFound();
+});
+
+test('deactivating a form removes it from every public form endpoint', function () {
+    $form = Form::create(['name' => 'Live Then Withdrawn', 'slug' => 'live-then-withdrawn', 'is_active' => true]);
+
+    // Visible while active — this is how a caller learns the UUID.
+    $this->getJson('/api/v1/forms')->assertOk()->assertJsonCount(1, 'data');
+    $this->getJson("/api/v1/forms/{$form->uuid}")->assertOk();
+    $this->getJson("/api/v1/forms/{$form->uuid}/schema")->assertOk();
+    $this->getJson('/api/v1/forms/live-then-withdrawn/by-slug')->assertOk();
+
+    $form->update(['is_active' => false]);
+
+    // Deactivation must be a real unpublish, even for a caller that already has the UUID.
+    $this->getJson('/api/v1/forms')->assertOk()->assertJsonCount(0, 'data');
+    $this->getJson("/api/v1/forms/{$form->uuid}")->assertNotFound();
+    $this->getJson("/api/v1/forms/{$form->uuid}/schema")->assertNotFound();
+    $this->getJson('/api/v1/forms/live-then-withdrawn/by-slug')->assertNotFound();
+});
