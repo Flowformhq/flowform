@@ -23,6 +23,7 @@ class FieldResource extends JsonResource
             'is_required' => $this->is_required,
             'is_repeatable' => $this->is_repeatable,
             'order' => $this->order,
+            'config' => $this->config,
             'field_type' => new FieldTypeResource($this->whenLoaded('fieldType')),
             'options' => FieldOptionResource::collection($this->whenLoaded('options')),
             'conditions' => ConditionResource::collection($this->whenLoaded('conditions')),

@@ -176,3 +176,32 @@ test('GET /api/v1/submissions/{uuid}/conditions returns field states', function 
         ->assertOk()
         ->assertJsonStructure(['data' => [['field_id', 'field_code', 'is_visible', 'is_required']]]);
 });
+
+test('POST /api/v1/public/submissions creates a new guest submission without auth', function () {
+    $form = Form::create(['name' => 'Public Quiz', 'is_active' => true]);
+    Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+
+    $this->postJson('/api/v1/public/submissions', ['form_uuid' => $form->uuid])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'draft')
+        ->assertJsonPath('data.current_step', 1);
+});
+
+test('POST /api/v1/public/submissions/{uuid}/values stores values without auth', function () {
+    $form = Form::create(['name' => 'Public Form', 'is_active' => true]);
+    $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id, 'step_id' => $step->id,
+        'field_type_id' => $ft->id, 'code' => 'answer', 'label' => 'Answer', 'order' => 1,
+    ]);
+    $submission = Submission::create(['form_id' => $form->id]);
+
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/values", [
+        'values' => [
+            ['field_code' => 'answer', 'value' => 'Option B'],
+        ],
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.values.answer', 'Option B');
+});

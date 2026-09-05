@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="flowIconGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="#0f172a" stroke="#334155" stroke-width="2" />
+  <path d="M14 18C14 15.7909 15.7909 14 18 14H30C32.2091 14 34 15.7909 34 18C34 20.2091 32.2091 22 30 22H18C15.7909 22 14 23.7909 14 26C14 28.2091 15.7909 30 18 30H30" stroke="url(#flowIconGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="30" cy="30" r="2.5" fill="#06b6d4" />
+</svg>
