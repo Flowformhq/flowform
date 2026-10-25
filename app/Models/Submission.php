@@ -18,10 +18,12 @@ class Submission extends Model
         'uuid',
         'status',
         'current_step',
+        'data',
         'meta',
     ];
 
     protected $casts = [
+        'data' => 'array',
         'meta' => 'array',
     ];
 

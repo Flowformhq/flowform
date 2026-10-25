@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Auth\SocialLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
+    ->name('forms.endpoint.submit');
 
 Route::middleware(['web', 'guest'])->group(function () {
     Route::get('auth/{provider}/redirect', [SocialLoginController::class, 'redirect'])
