@@ -26,7 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::get('public/submissions/{uuid}/conditions', [SubmissionController::class, 'conditions']);
     });
 
-    Route::middleware(['auth:sanctum', 'throttle:api-auth'])->group(function () {
+    Route::middleware('throttle:api-submissions')->group(function () {
         Route::post('submissions', [SubmissionController::class, 'store']);
         Route::get('submissions/{uuid}', [SubmissionController::class, 'show']);
         Route::patch('submissions/{uuid}', [SubmissionController::class, 'update']);
