@@ -15,9 +15,16 @@ class Form extends Model
         'uuid',
         'name',
         'slug',
+        'type',
         'description',
+        'notification_email',
+        'redirect_url',
         'is_active',
         'version',
+    ];
+
+    protected $attributes = [
+        'type' => 'wizard',
     ];
 
     protected static function booted(): void
@@ -55,6 +62,28 @@ class Form extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeEndpoint($query)
+    {
+        return $query->where('type', 'endpoint');
+    }
+
+    public function scopeWizard($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('type', 'wizard')->orWhereNull('type');
+        });
+    }
+
+    public function isEndpoint(): bool
+    {
+        return $this->type === 'endpoint';
+    }
+
+    public function isWizard(): bool
+    {
+        return $this->type === 'wizard' || empty($this->type);
     }
 
     public function firstStep(): ?Step

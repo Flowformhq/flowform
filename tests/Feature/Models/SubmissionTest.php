@@ -105,3 +105,14 @@ test('completed scope returns only completed submissions', function () {
     expect($completed)->toHaveCount(2)
         ->and($completed->every(fn ($s) => $s->status === 'completed'))->toBeTrue();
 });
+
+test('casts data as array', function () {
+    $form = Form::create(['name' => 'Test Form']);
+    $submission = Submission::create([
+        'form_id' => $form->id,
+        'data' => ['email' => 'test@example.com', 'subject' => 'Help'],
+    ]);
+
+    expect($submission->fresh()->data)->toBeArray()
+        ->and($submission->fresh()->data['email'])->toBe('test@example.com');
+});

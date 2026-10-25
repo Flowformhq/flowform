@@ -34,7 +34,11 @@ class SubmissionsTable
                 TextColumn::make('current_step')
                     ->label('Progress')
                     ->formatStateUsing(function ($state, $record) {
-                        $totalSteps = $record->form->stepCount();
+                        if ($record->form?->isEndpoint()) {
+                            return 'Endpoint';
+                        }
+
+                        $totalSteps = $record->form?->stepCount() ?? 0;
 
                         return $totalSteps > 0
                             ? "Step {$state} of {$totalSteps}"

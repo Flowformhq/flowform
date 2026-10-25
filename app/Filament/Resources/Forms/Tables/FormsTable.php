@@ -21,6 +21,17 @@ class FormsTable
                     ->sortable(),
                 TextColumn::make('slug')
                     ->searchable(),
+                TextColumn::make('type')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'endpoint' => 'info',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'endpoint' => 'Endpoint',
+                        default => 'Wizard',
+                    })
+                    ->sortable(),
                 TextColumn::make('is_active')
                     ->badge()
                     ->color(fn (bool $state): string => $state ? 'success' : 'danger')
