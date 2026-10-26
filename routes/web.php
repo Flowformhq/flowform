@@ -9,6 +9,7 @@ Route::get('/', function () {
 });
 
 Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
+    ->middleware('throttle:endpoint-submissions')
     ->name('forms.endpoint.submit');
 
 Route::middleware(['web', 'guest'])->group(function () {

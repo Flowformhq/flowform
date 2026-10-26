@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
+    Cache::flush();
     Mail::fake();
 });
 
@@ -282,15 +284,118 @@ test('reserved meta keys are excluded from submission data', function () {
         'comment' => 'Great work',
         '_gotcha' => '',
         '_honeypot' => '',
-        '_next' => 'https://example.com/thanks',
-        '_redirect' => 'https://example.com/thanks',
+        '_next' => 'https://buildeon.solutions/thanks',
+        '_redirect' => 'https://buildeon.solutions/thanks',
         '_token' => 'csrf-sample-token',
         '_method' => 'POST',
-    ])->assertRedirect('https://example.com/thanks');
+    ])->assertRedirect('https://buildeon.solutions/thanks');
 
     $submission = Submission::where('form_id', $form->id)->first();
     expect($submission->data)->toEqual([
         'name' => 'Clean User',
         'comment' => 'Great work',
     ]);
+});
+
+test('disallowed external domain in _next is rejected and returns JSON', function () {
+    $form = Form::create([
+        'name' => 'Attacker Target',
+        'slug' => 'attacker-target',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/attacker-target', [
+        'name' => 'Victim',
+        '_next' => 'https://evil.com/phishing',
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'success' => true,
+            'message' => 'Submission received',
+        ]);
+});
+
+test('disallowed external domain in _next falls back to form redirect_url', function () {
+    $form = Form::create([
+        'name' => 'Safe Fallback',
+        'slug' => 'safe-fallback',
+        'type' => 'endpoint',
+        'redirect_url' => 'https://buildeon.solutions/safe-fallback',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/safe-fallback', [
+        'name' => 'Victim',
+        '_next' => 'https://evil.com/phishing',
+    ]);
+
+    $response->assertRedirect('https://buildeon.solutions/safe-fallback');
+});
+
+test('relative internal path in _next is accepted for redirect', function () {
+    $form = Form::create([
+        'name' => 'Relative Form',
+        'slug' => 'relative-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/relative-form', [
+        'name' => 'User',
+        '_next' => '/work-with-us/?submitted=true',
+    ]);
+
+    $response->assertRedirect('/work-with-us/?submitted=true');
+});
+
+test('protocol-relative URL in _next is rejected', function () {
+    $form = Form::create([
+        'name' => 'Protocol Relative',
+        'slug' => 'protocol-relative',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/protocol-relative', [
+        'name' => 'User',
+        '_next' => '//evil.com/steal-creds',
+    ]);
+
+    $response->assertOk()
+        ->assertJson(['success' => true]);
+});
+
+test('subdomain matching wildcard host in _next is accepted', function () {
+    $form = Form::create([
+        'name' => 'Subdomain Form',
+        'slug' => 'subdomain-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/subdomain-form', [
+        'name' => 'User',
+        '_next' => 'https://staging.buildeon.solutions/work-with-us/?submitted=true',
+    ]);
+
+    $response->assertRedirect('https://staging.buildeon.solutions/work-with-us/?submitted=true');
+});
+
+test('public endpoint submissions are throttled to 10 requests per minute', function () {
+    $form = Form::create([
+        'name' => 'Rate Limit Form',
+        'slug' => 'rate-limit-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    for ($i = 0; $i < 10; $i++) {
+        $this->post('/f/rate-limit-form', ['test' => "req-{$i}"])
+            ->assertOk();
+    }
+
+    $response = $this->post('/f/rate-limit-form', ['test' => 'req-11']);
+    $response->assertStatus(429);
 });

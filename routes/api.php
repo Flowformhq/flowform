@@ -14,6 +14,7 @@ Route::prefix('v1')->group(function () {
 
         // Headless Endpoint Form Submission
         Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
+            ->middleware('throttle:endpoint-submissions')
             ->name('api.forms.endpoint.submit');
 
         // Public / Guest Submissions for active forms

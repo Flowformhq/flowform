@@ -60,9 +60,14 @@ class PublicEndpointController extends Controller
 
     protected function respondSuccess(Request $request, Form $form, ?Submission $submission): JsonResponse|RedirectResponse
     {
-        $redirectUrl = $request->input('_next')
-            ?: $request->input('_redirect')
-            ?: $form->redirect_url;
+        $candidateUrl = $request->input('_next') ?: $request->input('_redirect');
+        $redirectUrl = null;
+
+        if ($candidateUrl && $this->isAllowedRedirectUrl($candidateUrl)) {
+            $redirectUrl = $candidateUrl;
+        } elseif ($form->redirect_url) {
+            $redirectUrl = $form->redirect_url;
+        }
 
         // If client explicitly expects JSON or is accessing the api/ prefix route
         if ($request->expectsJson() || $request->is('api/*')) {
@@ -82,5 +87,64 @@ class PublicEndpointController extends Controller
             'message' => 'Submission received',
             'id' => $submission?->uuid,
         ], 200);
+    }
+
+    /**
+     * Validate whether a redirect target is safe against open-redirect attacks.
+     */
+    protected function isAllowedRedirectUrl(?string $url): bool
+    {
+        if (empty($url)) {
+            return false;
+        }
+
+        // Safe relative internal path: starts with '/', but not '//' or '/\'
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//') && ! str_starts_with($url, '/\\')) {
+            return true;
+        }
+
+        $parsed = parse_url($url);
+        if (! is_array($parsed) || empty($parsed['host'])) {
+            return false;
+        }
+
+        $scheme = strtolower($parsed['scheme'] ?? '');
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return false;
+        }
+
+        $host = strtolower($parsed['host']);
+
+        // Check against APP_URL host
+        $appUrl = config('app.url');
+        if ($appUrl) {
+            $appHost = parse_url((string) $appUrl, PHP_URL_HOST);
+            if ($appHost && strtolower($appHost) === $host) {
+                return true;
+            }
+        }
+
+        // Check configured allowed hosts
+        $allowedHosts = (array) config('flowform.allowed_redirect_hosts', []);
+        foreach ($allowedHosts as $pattern) {
+            $pattern = strtolower(trim((string) $pattern));
+            if ($pattern === '') {
+                continue;
+            }
+
+            if ($host === $pattern) {
+                return true;
+            }
+
+            // Wildcard matching e.g. *.buildeon.solutions
+            if (str_starts_with($pattern, '*.')) {
+                $rootDomain = substr($pattern, 2);
+                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
