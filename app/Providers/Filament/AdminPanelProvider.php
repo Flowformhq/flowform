@@ -30,6 +30,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->registration()
+            ->passwordReset()
+            ->profile()
             ->brandName('FlowForm')
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2.25rem')
@@ -68,6 +71,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::head.done',
                 fn (): string => view('filament.admin.styles')->render(),
+            )
+            ->renderHook(
+                'panels::global-search.before',
+                fn (): string => view('filament.admin.plan-badge')->render(),
             )
             ->renderHook(
                 'panels::auth.login.form.after',

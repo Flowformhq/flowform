@@ -20,19 +20,45 @@ class PublicEndpointController extends Controller
      */
     public function submit(Request $request, string $slug): JsonResponse|RedirectResponse
     {
-        $form = Form::where('slug', $slug)->active()->first();
+        // 1. Resolve form by access_key, slug, or uuid
+        $form = Form::where('access_key', $slug)
+            ->orWhere('slug', $slug)
+            ->orWhere('uuid', $slug)
+            ->active()
+            ->first();
 
         if (! $form || ! $form->isEndpoint()) {
-            abort(404, 'Endpoint form not found or inactive.');
+            return response()->json([
+                'success' => false,
+                'error' => 'Form endpoint not found or inactive.',
+            ], 404)->header('Access-Control-Allow-Origin', '*');
         }
 
-        // Honeypot spam check: silently discard spam submissions
+        // 2. Check Allowed Domain / Origin
+        $origin = $request->header('origin') ?: $request->header('referer');
+        if (! $form->isAllowedOrigin($origin)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Submissions are not permitted from this domain origin.',
+            ], 403)->header('Access-Control-Allow-Origin', '*');
+        }
+
+        // 3. Honeypot spam check: silently discard spam submissions
         $isSpam = ! empty($request->input('_gotcha')) || ! empty($request->input('_honeypot'));
 
         if ($isSpam) {
             return $this->respondSuccess($request, $form, null);
         }
 
+        // 4. Monthly Quota Check for Form Owner
+        if ($form->user && ! $form->user->canReceiveSubmissions()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Monthly submission quota reached for this form endpoint. Upgrade to Pro at https://flowformhq.com to unlock 10,000 submissions/mo.',
+            ], 429)->header('Access-Control-Allow-Origin', '*');
+        }
+
+        // 5. Clean and Store Payload
         $reservedKeys = ['_gotcha', '_honeypot', '_next', '_redirect', '_token', '_method'];
         $data = collect($request->all())->except($reservedKeys)->all();
 
@@ -48,10 +74,15 @@ class PublicEndpointController extends Controller
             ],
         ]);
 
+        // 6. Dispatch Notification Email
         if (! empty($form->notification_email)) {
             $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
             if (! empty($recipients)) {
-                Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
+                try {
+                    Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -75,7 +106,10 @@ class PublicEndpointController extends Controller
                 'success' => true,
                 'message' => 'Submission received',
                 'id' => $submission?->uuid,
-            ], 200);
+            ], 200)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
         }
 
         if ($redirectUrl) {
@@ -86,7 +120,10 @@ class PublicEndpointController extends Controller
             'success' => true,
             'message' => 'Submission received',
             'id' => $submission?->uuid,
-        ], 200);
+        ], 200)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
     }
 
     /**

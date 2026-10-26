@@ -17,46 +17,66 @@ class FormForm
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('Form Name')
                     ->required()
                     ->maxLength(255)
+                    ->placeholder('e.g. Portfolio Contact Form')
                     ->live(onBlur: true),
-                TextInput::make('slug')
-                    ->required()
-                    ->maxLength(255)
-                    ->readonly(),
                 Select::make('type')
+                    ->label('Form Mode')
                     ->options([
-                        'wizard' => 'Wizard Mode (Multi-Step)',
-                        'endpoint' => 'Endpoint Mode (Headless / HTML)',
+                        'endpoint' => 'Mode 1: Headless Endpoint (HTML / Web3Forms Alternative)',
+                        'wizard' => 'Mode 2: Multi-Step Wizard (Schema Branching)',
                     ])
-                    ->default('wizard')
+                    ->default('endpoint')
                     ->required()
                     ->live(),
-                TextInput::make('notification_email')
-                    ->label('Notification Email(s)')
-                    ->placeholder('e.g. contact@buildeon.solutions')
-                    ->helperText('Comma-separated email addresses to notify upon new submissions.')
-                    ->visible(fn ($get) => $get('type') === 'endpoint'),
-                TextInput::make('redirect_url')
-                    ->label('Redirect URL')
-                    ->placeholder('https://yourdomain.com/thank-you')
-                    ->helperText('Optional fallback URL to redirect visitors after HTML form submission.')
-                    ->visible(fn ($get) => $get('type') === 'endpoint'),
                 TextInput::make('endpoint_url')
-                    ->label('Headless Endpoint URL')
-                    ->formatStateUsing(fn ($record) => $record?->slug ? url("/f/{$record->slug}") : 'Save form to generate endpoint URL')
+                    ->label('Your Live Form Endpoint')
+                    ->formatStateUsing(function ($record) {
+                        if (! $record) {
+                            return 'Save form to generate unique endpoint URL';
+                        }
+                        $id = $record->access_key ?: $record->slug;
+                        return url("/f/{$id}");
+                    })
                     ->readOnly()
                     ->copyable()
                     ->dehydrated(false)
+                    ->helperText('Copy this endpoint into your HTML <form action="..."> or fetch() request.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('notification_email')
+                    ->label('Notification Email(s)')
+                    ->placeholder('e.g. you@company.com')
+                    ->helperText('Comma-separated email addresses where form submissions will be forwarded.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('redirect_url')
+                    ->label('Custom Redirect URL')
+                    ->placeholder('https://yourdomain.com/thanks')
+                    ->helperText('Optional page to redirect visitors after HTML form submission.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('allowed_domains')
+                    ->label('Allowed Domain Origins (Spam & Hijack Protection)')
+                    ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
+                    ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('access_key')
+                    ->label('Unique Access Key')
+                    ->readOnly()
+                    ->copyable()
+                    ->dehydrated(false)
+                    ->visible(fn ($record) => ! empty($record?->access_key)),
+                TextInput::make('slug')
+                    ->label('Internal Slug')
+                    ->maxLength(255)
+                    ->readonly()
+                    ->visible(fn () => auth()->user()?->is_admin),
                 Textarea::make('description')
+                    ->label('Notes / Description')
                     ->columnSpanFull(),
-                Toggle::make('is_active'),
-                TextInput::make('version')
-                    ->required()
-                    ->numeric()
-                    ->default(1)
-                    ->minValue(1),
+                Toggle::make('is_active')
+                    ->label('Active (Accepting Submissions)')
+                    ->default(true),
             ]);
     }
 }

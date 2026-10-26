@@ -15,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SubmissionResource extends Resource
 {
@@ -49,5 +50,11 @@ class SubmissionResource extends Resource
             'index' => ListSubmissions::route('/'),
             'view' => ViewSubmission::route('/{record}'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->when(! auth()->user()?->is_admin, fn ($query) => $query->whereHas('form', fn ($q) => $q->where('user_id', auth()->id())));
     }
 }
