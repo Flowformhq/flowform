@@ -34,8 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->profile()
             ->brandName('FlowForm')
-            ->brandLogo('/brand/flowform-logo-light.svg')
-            ->darkModeBrandLogo('/brand/flowform-logo-dark.svg')
+            ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2.25rem')
             ->favicon('/brand/flowform-icon.svg')
             ->colors([

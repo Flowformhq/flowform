@@ -44,34 +44,46 @@
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
   }
 
-  /* Logo Theme Toggling & Geometry */
-  img.fi-logo-dark {
-    display: none !important;
-  }
-  img.fi-logo-light {
-    display: block !important;
-  }
-
-  html.dark img.fi-logo-dark {
-    display: block !important;
-  }
-  html.dark img.fi-logo-light {
-    display: none !important;
-  }
-
-  img.fi-logo {
-    height: 2.25rem !important;
-    width: auto !important;
-    max-width: 100% !important;
-  }
-
-  .fi-simple-header {
-    display: flex !important;
-    flex-direction: column !important;
+  /* FlowForm Brand Lockup (Icon Mark + Live Typography) */
+  .flowform-brand-lockup {
+    display: inline-flex !important;
     align-items: center !important;
+    gap: 0.625rem !important;
+    text-decoration: none !important;
   }
 
-  .fi-simple-header img.fi-logo {
+  .fi-simple-header .flowform-brand-lockup,
+  .fi-simple-header .fi-logo {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
     margin: 0 auto 1.5rem auto !important;
+  }
+
+  html.dark .flowform-mark-dark {
+    display: block !important;
+  }
+  html.dark .flowform-mark-light {
+    display: none !important;
+  }
+  html:not(.dark) .flowform-mark-dark {
+    display: none !important;
+  }
+  html:not(.dark) .flowform-mark-light {
+    display: block !important;
+  }
+
+  .flowform-word-flow {
+    color: #f8fafc !important;
+  }
+  html:not(.dark) .flowform-word-flow {
+    color: #0f172a !important;
+  }
+
+  .flowform-word-form {
+    color: #00f0ff !important;
+  }
+  html:not(.dark) .flowform-word-form {
+    color: #0284c7 !important;
   }
 </style>
