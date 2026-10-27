@@ -81,6 +81,17 @@ class MailSettingsPage extends Page
         $this->showApiKey = ! $this->showApiKey;
     }
 
+    protected function getViewData(): array
+    {
+        return [
+            'driver' => $this->driver,
+            'is_active' => $this->is_active,
+            'showPassword' => $this->showPassword,
+            'showApiKey' => $this->showApiKey,
+            'testResult' => $this->testResult,
+        ];
+    }
+
     public function save(): void
     {
         $this->validate([
