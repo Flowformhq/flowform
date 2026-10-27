@@ -41,7 +41,7 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Cyan,
                 'gray' => Color::Slate,
             ])
-            ->font('Inter')
+            ->font('Google Sans Text')
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
