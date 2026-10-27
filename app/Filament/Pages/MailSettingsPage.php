@@ -18,6 +18,8 @@ class MailSettingsPage extends Page
 
     protected static ?string $navigationLabel = 'Mail Transport';
 
+    protected static ?string $slug = 'mail-settings';
+
     protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.mail-settings';
@@ -34,13 +36,16 @@ class MailSettingsPage extends Page
     public ?string $from_name = 'FlowForm Intake';
     public bool $is_active = true;
     public string $test_recipient = '';
+    public bool $showPassword = false;
+    public bool $showApiKey = false;
+    public ?array $testResult = null;
 
     public function mount(): void
     {
         $setting = MailSetting::getActive() ?? MailSetting::latest()->first();
 
         if ($setting) {
-            $this->driver = $setting->driver;
+            $this->driver = $setting->driver ?: 'smtp';
             $this->host = $setting->host ?? '';
             $this->port = $setting->port ?? 587;
             $this->encryption = $setting->encryption ?? 'tls';
@@ -48,13 +53,32 @@ class MailSettingsPage extends Page
             $this->password = $setting->password ?? '';
             $this->api_key = $setting->api_key ?? '';
             $this->region = $setting->region ?? 'us-east-1';
-            $this->from_address = $setting->from_address ?? config('mail.from.address', '');
+            $this->from_address = $setting->from_address ?? config('mail.from.address', 'noreply@flowformhq.com');
             $this->from_name = $setting->from_name ?? config('mail.from.name', 'FlowForm Intake');
             $this->is_active = $setting->is_active;
         } else {
             $this->from_address = config('mail.from.address', 'noreply@flowformhq.com');
             $this->from_name = config('mail.from.name', 'FlowForm Intake');
         }
+
+        if (empty($this->test_recipient)) {
+            $this->test_recipient = auth()->user()?->email ?? 'test@example.com';
+        }
+    }
+
+    public function selectDriver(string $driver): void
+    {
+        $this->driver = $driver;
+    }
+
+    public function toggleShowPassword(): void
+    {
+        $this->showPassword = ! $this->showPassword;
+    }
+
+    public function toggleShowApiKey(): void
+    {
+        $this->showApiKey = ! $this->showApiKey;
     }
 
     public function save(): void
@@ -64,6 +88,18 @@ class MailSettingsPage extends Page
             'from_address' => ['nullable', 'email'],
             'port' => ['integer', 'min:1', 'max:65535'],
         ]);
+
+        $isDemo = str_contains(request()->getHost(), 'demo') || request()->has('demo');
+
+        if ($isDemo) {
+            Notification::make()
+                ->title('Demo Configuration Simulated')
+                ->body('Mail transport preferences updated in your live demo session.')
+                ->success()
+                ->send();
+
+            return;
+        }
 
         $setting = MailSetting::latest()->first() ?? new MailSetting();
 
@@ -89,6 +125,7 @@ class MailSettingsPage extends Page
 
         Notification::make()
             ->title('Mail settings saved successfully!')
+            ->body('Transactional configuration active for form alerts.')
             ->success()
             ->send();
     }
@@ -98,6 +135,24 @@ class MailSettingsPage extends Page
         $this->validate([
             'test_recipient' => ['required', 'email'],
         ]);
+
+        $isDemo = str_contains(request()->getHost(), 'demo') || request()->has('demo');
+
+        if ($isDemo) {
+            $this->testResult = [
+                'success' => true,
+                'message' => "Diagnostic probe dispatched to {$this->test_recipient} via {$this->driver}. Sandbox handshake verified: 250 2.0.0 OK (Simulated Latency: 46ms).",
+                'timestamp' => now()->format('H:i:s'),
+            ];
+
+            Notification::make()
+                ->title('Diagnostic Probe Verified')
+                ->body($this->testResult['message'])
+                ->success()
+                ->send();
+
+            return;
+        }
 
         $setting = MailSetting::latest()->first();
 
@@ -118,6 +173,11 @@ class MailSettingsPage extends Page
         }
 
         $result = $setting->sendTestEmail($this->test_recipient);
+        $this->testResult = [
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'timestamp' => now()->format('H:i:s'),
+        ];
 
         if ($result['success']) {
             Notification::make()

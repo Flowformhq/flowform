@@ -18,7 +18,7 @@ class Login extends BaseLogin
 
         if ($this->isDemo()) {
             $this->form->fill([
-                'email' => 'admin@flowformhq.com',
+                'email' => 'demo@flowformhq.com',
                 'password' => 'password',
                 'remember' => true,
             ]);
@@ -33,8 +33,8 @@ class Login extends BaseLogin
 
         if ($this->isDemo()) {
             $component
-                ->default('admin@flowformhq.com')
-                ->extraInputAttributes(['value' => 'admin@flowformhq.com']);
+                ->default('demo@flowformhq.com')
+                ->extraInputAttributes(['value' => 'demo@flowformhq.com']);
         }
 
         return $component;

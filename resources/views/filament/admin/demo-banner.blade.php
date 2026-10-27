@@ -15,7 +15,7 @@
                 <span class="font-semibold text-cyan-300 shrink-0">Live Demo:</span>
                 <span class="text-cyan-100/90 truncate">Credentials prefilled below. Click sign in to explore.</span>
             </div>
-            <span class="font-mono text-[11px] text-cyan-400/80 shrink-0 hidden sm:inline">admin@flowformhq.com</span>
+            <span class="font-mono text-[11px] text-cyan-400/80 shrink-0 hidden sm:inline">demo@flowformhq.com</span>
         </div>
     </div>
 @endif

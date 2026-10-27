@@ -10,6 +10,10 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+Route::get('admin/mail-settings-page', function () {
+    return redirect('/admin/mail-settings');
+});
+
 Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
     ->middleware('throttle:endpoint-submissions')
     ->name('forms.endpoint.submit');
