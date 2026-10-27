@@ -22,6 +22,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:api-public')
             ->name('api.mcp');
 
+        // Public Compliance DPA & Safeguards
+        Route::get('compliance/dpa', [\App\Http\Controllers\Api\ComplianceController::class, 'dpa'])
+            ->name('api.compliance.dpa');
+
         // Public / Guest Submissions for active forms
         Route::post('public/submissions', [SubmissionController::class, 'store']);
         Route::get('public/submissions/{uuid}', [SubmissionController::class, 'show']);
@@ -40,5 +44,11 @@ Route::prefix('v1')->group(function () {
         Route::post('submissions/{uuid}/advance', [SubmissionController::class, 'advance']);
         Route::post('submissions/{uuid}/retreat', [SubmissionController::class, 'retreat']);
         Route::get('submissions/{uuid}/conditions', [SubmissionController::class, 'conditions']);
+
+        // GDPR & HIPAA Compliance API
+        Route::get('compliance/gdpr/export', [\App\Http\Controllers\Api\ComplianceController::class, 'export'])
+            ->name('api.compliance.gdpr.export');
+        Route::post('compliance/gdpr/erasure', [\App\Http\Controllers\Api\ComplianceController::class, 'erasure'])
+            ->name('api.compliance.gdpr.erasure');
     });
 });

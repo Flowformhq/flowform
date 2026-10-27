@@ -73,6 +73,16 @@ class SubmissionController extends Controller
         $submission = $this->resolveSubmission($uuid, $request);
         $submission->load(['form', 'values.field']);
 
+        if ($submission->is_encrypted) {
+            \App\Models\AuditLog::record(
+                action: 'submission.decrypted',
+                auditable: $submission,
+                details: ['form_uuid' => $submission->form?->uuid, 'status' => $submission->status],
+                user: $request->user(),
+                request: $request
+            );
+        }
+
         return new SubmissionDetailResource($submission);
     }
 
