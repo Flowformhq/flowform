@@ -17,6 +17,11 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:endpoint-submissions')
             ->name('api.forms.endpoint.submit');
 
+        // Model Context Protocol (MCP) JSON-RPC Endpoint for AI Agents
+        Route::post('mcp', [\App\Http\Controllers\Api\McpController::class, 'handle'])
+            ->middleware('throttle:api-public')
+            ->name('api.mcp');
+
         // Public / Guest Submissions for active forms
         Route::post('public/submissions', [SubmissionController::class, 'store']);
         Route::get('public/submissions/{uuid}', [SubmissionController::class, 'show']);

@@ -15,6 +15,7 @@ class Submission extends Model
 {
     protected $fillable = [
         'form_id',
+        'user_id',
         'uuid',
         'status',
         'is_encrypted',
@@ -81,6 +82,11 @@ class Submission extends Model
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function values(): HasMany

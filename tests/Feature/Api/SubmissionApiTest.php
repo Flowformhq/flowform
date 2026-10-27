@@ -205,3 +205,66 @@ test('POST /api/v1/public/submissions/{uuid}/values stores values without auth',
         ->assertOk()
         ->assertJsonPath('data.values.answer', 'Option B');
 });
+
+test('cross-user tenancy authorization: User B receives 404 when attempting to access or modify User A submission', function () {
+    $userA = User::factory()->create();
+    $userB = User::factory()->create();
+
+    $formA = Form::create([
+        'user_id' => $userA->id,
+        'name' => 'User A Confidential Form',
+        'is_active' => true,
+    ]);
+    $step = Step::create(['form_id' => $formA->id, 'step_number' => 1, 'title' => 'Step 1']);
+    $step2 = Step::create(['form_id' => $formA->id, 'step_number' => 2, 'title' => 'Step 2']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    $field = Field::create([
+        'form_id' => $formA->id, 'step_id' => $step->id,
+        'field_type_id' => $ft->id, 'code' => 'ssn', 'label' => 'SSN', 'order' => 1,
+    ]);
+
+    $submissionA = Submission::create([
+        'form_id' => $formA->id,
+        'user_id' => $userA->id,
+        'status' => 'draft',
+        'current_step' => 1,
+    ]);
+
+    // 1. User B GET /submissions/{uuid} -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->getJson("/api/v1/submissions/{$submissionA->uuid}")
+        ->assertNotFound();
+
+    // 2. User B PATCH /submissions/{uuid} -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->patchJson("/api/v1/submissions/{$submissionA->uuid}", ['status' => 'completed'])
+        ->assertNotFound();
+
+    // 3. User B POST /submissions/{uuid}/values -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->postJson("/api/v1/submissions/{$submissionA->uuid}/values", [
+            'values' => [['field_code' => 'ssn', 'value' => '999-99-9999']],
+        ])
+        ->assertNotFound();
+
+    // 4. User B POST /submissions/{uuid}/advance -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->postJson("/api/v1/submissions/{$submissionA->uuid}/advance")
+        ->assertNotFound();
+
+    // 5. User B POST /submissions/{uuid}/retreat -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->postJson("/api/v1/submissions/{$submissionA->uuid}/retreat")
+        ->assertNotFound();
+
+    // 6. User B GET /submissions/{uuid}/conditions -> 404
+    $this->actingAs($userB, 'sanctum')
+        ->getJson("/api/v1/submissions/{$submissionA->uuid}/conditions")
+        ->assertNotFound();
+
+    // Verification: User A CAN access their own submission
+    $this->actingAs($userA, 'sanctum')
+        ->getJson("/api/v1/submissions/{$submissionA->uuid}")
+        ->assertOk()
+        ->assertJsonPath('data.uuid', $submissionA->uuid);
+});

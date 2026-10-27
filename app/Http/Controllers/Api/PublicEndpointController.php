@@ -77,11 +77,12 @@ class PublicEndpointController extends Controller
         ]);
         $submission->save();
 
-        // 6. Dispatch Notification Email (Amazon SES Relay)
+        // 6. Dispatch Notification Email (Amazon SES Relay / Custom In-App SMTP)
         if ($hasEmail) {
             $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
             if (! empty($recipients)) {
                 try {
+                    \App\Models\MailSetting::applyActiveConfig();
                     Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
                 } catch (\Throwable $e) {
                     report($e);

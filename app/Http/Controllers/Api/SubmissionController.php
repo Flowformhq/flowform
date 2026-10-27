@@ -46,6 +46,7 @@ class SubmissionController extends Controller
 
         $submission = Submission::create([
             'form_id' => $form->id,
+            'user_id' => $request->user()?->id,
             'status' => 'draft',
             'current_step' => 1,
         ]);
@@ -67,11 +68,10 @@ class SubmissionController extends Controller
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"draft","current_step":1,"progress_percentage":0,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z","values":{"email":"user@example.com","name":"Alice"}}}
      * @response 404 scenario="not found" {"message":"Not Found"}
      */
-    public function show(string $uuid): SubmissionDetailResource
+    public function show(string $uuid, Request $request): SubmissionDetailResource
     {
-        $submission = Submission::where('uuid', $uuid)
-            ->with(['form', 'values.field'])
-            ->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
+        $submission->load(['form', 'values.field']);
 
         return new SubmissionDetailResource($submission);
     }
@@ -92,7 +92,7 @@ class SubmissionController extends Controller
      */
     public function update(string $uuid, Request $request): SubmissionResource
     {
-        $submission = Submission::where('uuid', $uuid)->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
 
         $data = $request->validate([
             'status' => ['sometimes', 'string', Rule::in(['draft', 'completed', 'abandoned'])],
@@ -123,7 +123,7 @@ class SubmissionController extends Controller
      */
     public function storeValues(string $uuid, Request $request): SubmissionDetailResource
     {
-        $submission = Submission::where('uuid', $uuid)->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
 
         $data = $request->validate([
             'values' => ['required', 'array'],
@@ -164,9 +164,9 @@ class SubmissionController extends Controller
      * @response 200 scenario="advanced" {"current_step":2}
      * @response 422 scenario="last step" {"message":"Already on the last step."}
      */
-    public function advance(string $uuid): JsonResponse
+    public function advance(string $uuid, Request $request): JsonResponse
     {
-        $submission = Submission::where('uuid', $uuid)->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
 
         if (! $submission->advanceStep()) {
             return response()->json(['message' => 'Already on the last step.'], 422);
@@ -187,9 +187,9 @@ class SubmissionController extends Controller
      * @response 200 scenario="retreated" {"current_step":1}
      * @response 422 scenario="first step" {"message":"Already on the first step."}
      */
-    public function retreat(string $uuid): JsonResponse
+    public function retreat(string $uuid, Request $request): JsonResponse
     {
-        $submission = Submission::where('uuid', $uuid)->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
 
         if (! $submission->retreatStep()) {
             return response()->json(['message' => 'Already on the first step.'], 422);
@@ -210,11 +210,10 @@ class SubmissionController extends Controller
      *
      * @response 200 scenario="success" {"data":[{"field_id":1,"field_code":"email","is_visible":true,"is_required":true},{"field_id":2,"field_code":"company","is_visible":false,"is_required":false}]}
      */
-    public function conditions(string $uuid): JsonResponse
+    public function conditions(string $uuid, Request $request): JsonResponse
     {
-        $submission = Submission::where('uuid', $uuid)
-            ->with(['form.fields.conditions', 'values'])
-            ->firstOrFail();
+        $submission = $this->resolveSubmission($uuid, $request);
+        $submission->load(['form.fields.conditions', 'values']);
 
         $states = $submission->evaluateConditions();
 
@@ -228,5 +227,29 @@ class SubmissionController extends Controller
         })->values();
 
         return response()->json(['data' => $resources]);
+    }
+
+    /**
+     * Resolve submission scoped by tenant / object-level tenancy authorization.
+     */
+    protected function resolveSubmission(string $uuid, Request $request): Submission
+    {
+        $query = Submission::where('uuid', $uuid);
+
+        // When accessed via authenticated API routes, enforce object-level tenancy authorization
+        if ($user = $request->user()) {
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('form', function ($formQuery) use ($user) {
+                        $formQuery->where('user_id', $user->id);
+                    })
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('user_id')
+                            ->whereHas('form', fn ($fq) => $fq->whereNull('user_id'));
+                    });
+            });
+        }
+
+        return $query->firstOrFail();
     }
 }
