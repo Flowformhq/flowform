@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
             ->registration()
             ->passwordReset()
             ->profile()
@@ -77,7 +78,15 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => view('filament.admin.plan-badge')->render(),
             )
             ->renderHook(
+                'panels::auth.login.form.before',
+                fn (): string => view('filament.admin.demo-banner')->render(),
+            )
+            ->renderHook(
                 'panels::auth.login.form.after',
+                fn (): string => view('auth.social-login')->render(),
+            )
+            ->renderHook(
+                'panels::auth.register.form.after',
                 fn (): string => view('auth.social-login')->render(),
             );
     }
