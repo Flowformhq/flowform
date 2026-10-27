@@ -43,4 +43,19 @@
     border-radius: 0.75rem !important;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
   }
+
+  .fi-logo {
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .fi-simple-header .fi-logo {
+    justify-content: center !important;
+    margin: 0 auto 1.5rem auto !important;
+  }
+
+  .fi-logo img {
+    height: 2.25rem !important;
+    width: auto !important;
+  }
 </style>
