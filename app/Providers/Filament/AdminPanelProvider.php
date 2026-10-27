@@ -36,7 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('FlowForm')
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2.25rem')
-            ->favicon(asset('brand/flowform-icon.svg'))
+            ->favicon('/brand/flowform-icon.svg')
             ->colors([
                 'primary' => Color::Cyan,
                 'gray' => Color::Slate,
