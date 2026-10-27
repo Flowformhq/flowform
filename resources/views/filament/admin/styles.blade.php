@@ -44,18 +44,34 @@
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
   }
 
-  .fi-logo {
+  /* Logo Theme Toggling & Geometry */
+  img.fi-logo-dark {
+    display: none !important;
+  }
+  img.fi-logo-light {
+    display: block !important;
+  }
+
+  html.dark img.fi-logo-dark {
+    display: block !important;
+  }
+  html.dark img.fi-logo-light {
+    display: none !important;
+  }
+
+  img.fi-logo {
+    height: 2.25rem !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  .fi-simple-header {
     display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
   }
 
-  .fi-simple-header .fi-logo {
-    justify-content: center !important;
+  .fi-simple-header img.fi-logo {
     margin: 0 auto 1.5rem auto !important;
-  }
-
-  .fi-logo img {
-    height: 2.25rem !important;
-    width: auto !important;
   }
 </style>
