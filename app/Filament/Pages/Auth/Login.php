@@ -32,7 +32,9 @@ class Login extends BaseLogin
         $component = parent::getEmailFormComponent();
 
         if ($this->isDemo()) {
-            $component->default('admin@flowformhq.com');
+            $component
+                ->default('admin@flowformhq.com')
+                ->extraInputAttributes(['value' => 'admin@flowformhq.com']);
         }
 
         return $component;
@@ -43,7 +45,9 @@ class Login extends BaseLogin
         $component = parent::getPasswordFormComponent();
 
         if ($this->isDemo()) {
-            $component->default('password');
+            $component
+                ->default('password')
+                ->extraInputAttributes(['value' => 'password']);
         }
 
         return $component;
