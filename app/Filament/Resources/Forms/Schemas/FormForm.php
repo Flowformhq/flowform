@@ -60,6 +60,21 @@ class FormForm
                     ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
                     ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('webhook_url')
+                    ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')
+                    ->placeholder('https://api.yourdomain.com/webhooks/intake')
+                    ->helperText('Optional endpoint where submission JSON will be pushed with automated exponential retries.')
+                    ->url(),
+                TextInput::make('webhook_secret')
+                    ->label('Webhook HMAC Secret')
+                    ->placeholder('e.g. whsec_...')
+                    ->password()
+                    ->revealable()
+                    ->helperText('Optional secret for validating the X-FlowForm-Signature SHA-256 header.'),
+                Toggle::make('is_encrypted')
+                    ->label('Field-Level AES-256 Encryption at Rest (HIPAA / GDPR Compliance)')
+                    ->helperText('Encrypt submission payloads at rest. Decryption occurs only in memory when accessed by authorized owners.')
+                    ->default(false),
                 TextInput::make('access_key')
                     ->label('Unique Access Key')
                     ->readOnly()

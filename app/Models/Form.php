@@ -23,8 +23,18 @@ class Form extends Model
         'notification_email',
         'redirect_url',
         'allowed_domains',
+        'is_encrypted',
+        'encrypted_fields',
+        'webhook_url',
+        'webhook_secret',
         'is_active',
         'version',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_encrypted' => 'boolean',
+        'encrypted_fields' => 'array',
     ];
 
     protected $attributes = [

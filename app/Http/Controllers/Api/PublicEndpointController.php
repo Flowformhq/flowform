@@ -59,13 +59,14 @@ class PublicEndpointController extends Controller
             ], 429)->header('Access-Control-Allow-Origin', '*');
         }
 
-        // 5. Clean and Store Payload
+        // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
         $reservedKeys = ['_gotcha', '_honeypot', '_next', '_redirect', '_token', '_method'];
         $data = collect($request->all())->except($reservedKeys)->all();
 
-        $submission = Submission::create([
+        $submission = new Submission([
             'form_id' => $form->id,
             'status' => 'completed',
+            'is_encrypted' => (bool) $form->is_encrypted,
             'current_step' => 1,
             'data' => $data,
             'meta' => [
@@ -74,6 +75,7 @@ class PublicEndpointController extends Controller
                 'referer' => $request->header('referer'),
             ],
         ]);
+        $submission->save();
 
         // 6. Dispatch Notification Email (Amazon SES Relay)
         if ($hasEmail) {
@@ -87,7 +89,16 @@ class PublicEndpointController extends Controller
             }
         }
 
-        // 7. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
+        // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
+        if (! empty($form->webhook_url)) {
+            try {
+                \App\Jobs\DispatchFormWebhook::dispatch($form, $submission, $data);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // 8. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
         $form->user?->deductCredits($hasEmail);
 
         return $this->respondSuccess($request, $form, $submission);

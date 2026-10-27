@@ -399,3 +399,60 @@ test('public endpoint submissions are throttled to 10 requests per minute', func
     $response = $this->post('/f/rate-limit-form', ['test' => 'req-11']);
     $response->assertStatus(429);
 });
+
+test('POST /f/{slug} encrypts submission data when form has is_encrypted=true', function () {
+    $form = Form::create([
+        'name' => 'HIPAA Patient Intake',
+        'slug' => 'patient-intake',
+        'type' => 'endpoint',
+        'is_active' => true,
+        'is_encrypted' => true,
+    ]);
+
+    $response = $this->post('/f/patient-intake', [
+        'patient_name' => 'Jane Doe',
+        'ssn' => '123-45-6789',
+        'condition' => 'Confidential health note',
+    ]);
+
+    $response->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->first();
+    expect($submission)->not->toBeNull();
+    expect($submission->is_encrypted)->toBeTrue();
+
+    // Transparent accessor decrypts payload
+    expect($submission->data['patient_name'])->toEqual('Jane Doe');
+    expect($submission->data['ssn'])->toEqual('123-45-6789');
+
+    // Raw database column is encrypted ciphertext (does not contain plaintext)
+    $rawDbData = \Illuminate\Support\Facades\DB::table('submissions')
+        ->where('id', $submission->id)
+        ->value('data');
+    expect($rawDbData)->not->toContain('Jane Doe');
+    expect($rawDbData)->not->toContain('123-45-6789');
+});
+
+test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', function () {
+    \Illuminate\Support\Facades\Queue::fake();
+
+    $form = Form::create([
+        'name' => 'Webhook Form',
+        'slug' => 'webhook-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+        'webhook_url' => 'https://api.acme-corp.com/hooks/flowform',
+        'webhook_secret' => 'whsec_secret_key_12345',
+    ]);
+
+    $response = $this->post('/f/webhook-form', [
+        'lead_name' => 'John Agency',
+    ]);
+
+    $response->assertOk();
+
+    \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\DispatchFormWebhook::class, function ($job) use ($form) {
+        return $job->form->id === $form->id && $job->payload['lead_name'] === 'John Agency';
+    });
+});
+
