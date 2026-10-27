@@ -13,13 +13,26 @@ use Illuminate\Support\Facades\Auth;
 class BillingController extends Controller
 {
     /**
-     * Initiate Pro Tier upgrade with Zoneless (USDT / USDC).
+     * Initiate Pro Tier upgrade or Pay-As-You-Go Credit Top-Up with Zoneless (USDT / USDC).
      */
     public function upgrade(Request $request, ZonelessService $zoneless): RedirectResponse
     {
         $user = Auth::user();
         if (! $user) {
             return redirect()->route('filament.admin.auth.login');
+        }
+
+        $pack = $request->query('pack');
+        if ($pack) {
+            $packUsd = max(1, (int) $pack);
+            $checkoutUrl = $zoneless->createCreditCheckoutSession($user, $packUsd);
+
+            if ($checkoutUrl) {
+                return redirect()->away($checkoutUrl);
+            }
+
+            $credits = ZonelessService::getCreditsForPack($packUsd);
+            return redirect('/admin')->with('status', "Topped up {$credits} credits (Test Mode Active).");
         }
 
         $interval = $request->query('interval', 'monthly');
@@ -38,7 +51,12 @@ class BillingController extends Controller
      */
     public function success(Request $request): RedirectResponse
     {
-        return redirect('/admin')->with('status', 'Payment successful! Your account has been upgraded to FlowForm Pro.');
+        $type = $request->query('type');
+        $msg = $type === 'credits'
+            ? 'Payment successful! Your pay-as-you-go credits have been topped up.'
+            : 'Payment successful! Your account has been upgraded to FlowForm Pro.';
+
+        return redirect('/admin')->with('status', $msg);
     }
 
     /**

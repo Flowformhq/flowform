@@ -31,18 +31,26 @@ class FormsOverviewWidget extends StatsOverviewWidget
         $planColor = $user?->isPro() ? 'success' : 'warning';
         $planDesc = $user?->isPro()
             ? 'USDC / USDT Stablecoin plan active'
-            : "{$thisMonthSubmissions} / 50 used this month";
+            : "{$thisMonthSubmissions} / 50 free monthly used";
+
+        $credits = $user?->credits_balance ?? 0;
+        $estEmails = $user?->estimatedEmailSubmissions() ?? 0;
+        $estWebhooks = $user?->estimatedWebhookSubmissions() ?? 0;
 
         return [
             Stat::make('Your Plan', $planLabel)
                 ->description($planDesc)
                 ->color($planColor),
+            Stat::make('Pay-As-You-Go Credits', number_format($credits))
+                ->description("~" . number_format($estEmails) . " emails OR ~" . number_format($estWebhooks) . " webhooks")
+                ->descriptionIcon('heroicon-m-bolt')
+                ->color($credits > 100 ? 'success' : ($credits > 0 ? 'warning' : 'danger')),
             Stat::make('Active Forms', $activeForms)
                 ->description("Total forms: {$totalForms}")
                 ->color('info'),
-            Stat::make('Monthly Submissions', $thisMonthSubmissions)
+            Stat::make('Monthly Ingest', $thisMonthSubmissions)
                 ->description("Limit: {$quota}")
-                ->color($thisMonthSubmissions >= 50 && ! $user?->isPro() ? 'danger' : 'success'),
+                ->color($thisMonthSubmissions >= 50 && ! $user?->isPro() && $credits <= 0 ? 'danger' : 'success'),
         ];
     }
 }

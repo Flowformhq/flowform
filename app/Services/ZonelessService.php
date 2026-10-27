@@ -20,6 +20,84 @@ class ZonelessService
     }
 
     /**
+     * Map USD pack amount to credit quantities.
+     */
+    public static function getCreditsForPack(int $usd): int
+    {
+        return match ($usd) {
+            1 => 5000,
+            5 => 28000,
+            15 => 100000,
+            45 => 350000,
+            default => $usd * 5000,
+        };
+    }
+
+    /**
+     * Create a Zoneless Checkout Session for Pay-As-You-Go Credits (USDC/USDT).
+     */
+    public function createCreditCheckoutSession(User $user, int $packUsd = 1): ?string
+    {
+        $credits = self::getCreditsForPack($packUsd);
+
+        if (empty($this->secretKey)) {
+            Log::warning('Zoneless secret key is not configured. Falling back to simulated credit top-up.');
+            $user->increment('credits_balance', $credits);
+            return null;
+        }
+
+        $unitAmount = $packUsd * 100; // in cents
+
+        $payload = [
+            'mode' => 'payment',
+            'line_items' => [
+                [
+                    'price_data' => [
+                        'currency' => 'usd',
+                        'product_data' => [
+                            'name' => "FlowForm {$credits} Pay-As-You-Go Credits",
+                            'description' => "Never-expiring credits: ~" . ($credits / 5) . " Amazon SES emails or ~{$credits} webhook/database submissions.",
+                        ],
+                        'unit_amount' => $unitAmount,
+                    ],
+                    'quantity' => 1,
+                ],
+            ],
+            'client_reference_id' => (string) $user->id,
+            'customer_email' => $user->email,
+            'success_url' => url('/billing/success?session_id={CHECKOUT_SESSION_ID}&type=credits'),
+            'cancel_url' => url('/billing/cancel'),
+            'metadata' => [
+                'user_id' => (string) $user->id,
+                'type' => 'credits',
+                'pack_usd' => (string) $packUsd,
+                'credits' => (string) $credits,
+                'payment_method' => 'usdt_usdc',
+            ],
+        ];
+
+        try {
+            $response = Http::withToken($this->secretKey)
+                ->timeout(15)
+                ->post("{$this->apiUrl}/v1/checkout/sessions", $payload);
+
+            if ($response->successful()) {
+                $session = $response->json();
+                return $session['url'] ?? null;
+            }
+
+            Log::error('Zoneless credit checkout creation failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Zoneless checkout exception', ['message' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
      * Create a Zoneless Checkout Session for stablecoin payment (USDC/USDT).
      */
     public function createCheckoutSession(User $user, string $interval = 'monthly'): ?string
@@ -108,6 +186,15 @@ class ZonelessService
             if (! $user) {
                 Log::warning("Zoneless webhook user ID {$userId} not found");
                 return false;
+            }
+
+            $type = $data['metadata']['type'] ?? 'subscription';
+
+            if ($type === 'credits') {
+                $credits = (int) ($data['metadata']['credits'] ?? 5000);
+                $user->increment('credits_balance', $credits);
+                Log::info("User #{$user->id} ({$user->email}) topped up {$credits} credits via Zoneless.");
+                return true;
             }
 
             $interval = $data['metadata']['interval'] ?? 'monthly';

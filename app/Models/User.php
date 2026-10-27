@@ -20,6 +20,7 @@ use Laravel\Sanctum\HasApiTokens;
     'is_admin',
     'plan',
     'monthly_quota',
+    'credits_balance',
     'payment_reference_id',
     'subscription_status',
     'subscription_expires_at',
@@ -42,6 +43,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'monthly_quota' => 'integer',
+            'credits_balance' => 'integer',
             'subscription_expires_at' => 'datetime',
         ];
     }
@@ -79,13 +81,47 @@ class User extends Authenticatable
             ->count();
     }
 
-    public function canReceiveSubmissions(): bool
+    public function canReceiveSubmissions(bool $hasEmail = false): bool
     {
         if ($this->isPro()) {
             return true;
         }
 
         $quota = $this->monthly_quota ?? 50;
-        return $this->currentMonthSubmissionsCount() < $quota;
+        if ($this->currentMonthSubmissionsCount() < $quota) {
+            return true;
+        }
+
+        // Pay-As-You-Go Credits Check:
+        // 5 credits for Amazon SES email forwarding, 1 credit for webhook / database only
+        $cost = $hasEmail ? 5 : 1;
+        return ($this->credits_balance ?? 0) >= $cost;
+    }
+
+    public function deductCredits(bool $hasEmail = false): void
+    {
+        if ($this->is_admin || $this->isPro()) {
+            return;
+        }
+
+        $quota = $this->monthly_quota ?? 50;
+        if ($this->currentMonthSubmissionsCount() <= $quota) {
+            return; // Covered under free monthly quota
+        }
+
+        $cost = $hasEmail ? 5 : 1;
+        if (($this->credits_balance ?? 0) >= $cost) {
+            $this->decrement('credits_balance', $cost);
+        }
+    }
+
+    public function estimatedEmailSubmissions(): int
+    {
+        return (int) floor(($this->credits_balance ?? 0) / 5);
+    }
+
+    public function estimatedWebhookSubmissions(): int
+    {
+        return (int) ($this->credits_balance ?? 0);
     }
 }

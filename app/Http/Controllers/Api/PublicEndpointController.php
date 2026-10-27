@@ -50,11 +50,12 @@ class PublicEndpointController extends Controller
             return $this->respondSuccess($request, $form, null);
         }
 
-        // 4. Monthly Quota Check for Form Owner
-        if ($form->user && ! $form->user->canReceiveSubmissions()) {
+        // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
+        $hasEmail = ! empty($form->notification_email);
+        if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Monthly submission quota reached for this form endpoint. Upgrade to Pro at https://flowformhq.com to unlock 10,000 submissions/mo.',
+                'error' => 'Submission quota or credits exhausted for this form endpoint. Top up pay-as-you-go credits for as low as $1 at https://flowformhq.com.',
             ], 429)->header('Access-Control-Allow-Origin', '*');
         }
 
@@ -74,8 +75,8 @@ class PublicEndpointController extends Controller
             ],
         ]);
 
-        // 6. Dispatch Notification Email
-        if (! empty($form->notification_email)) {
+        // 6. Dispatch Notification Email (Amazon SES Relay)
+        if ($hasEmail) {
             $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
             if (! empty($recipients)) {
                 try {
@@ -85,6 +86,9 @@ class PublicEndpointController extends Controller
                 }
             }
         }
+
+        // 7. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
+        $form->user?->deductCredits($hasEmail);
 
         return $this->respondSuccess($request, $form, $submission);
     }
