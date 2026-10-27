@@ -9,7 +9,7 @@
     --font-heading: 'Google Sans', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
   
-  body, .fi-body {
+  body, .fi-body, .fi-simple-layout {
     background-color: #0b0f19 !important;
     font-family: var(--font-family) !important;
   }
@@ -37,9 +37,10 @@
     color: #94a3b8 !important;
   }
 
-  .fi-card, .fi-section, .fi-ta-ctn {
+  .fi-card, .fi-section, .fi-ta-ctn, .fi-simple-main {
     background-color: #0f172a !important;
     border: 1px solid #1e293b !important;
+    border-radius: 0.75rem !important;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
   }
 </style>

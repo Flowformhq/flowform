@@ -69,7 +69,7 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->renderHook(
-                'panels::head.done',
+                'panels::head.end',
                 fn (): string => view('filament.admin.styles')->render(),
             )
             ->renderHook(
