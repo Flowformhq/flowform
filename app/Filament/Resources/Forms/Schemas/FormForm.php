@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Forms\Schemas;
 
 use App\Models\Form;
+use App\Rules\ValidWebhookUrl;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -105,7 +106,7 @@ class FormForm
                     ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')
                     ->placeholder('https://api.yourdomain.com/webhooks/intake')
                     ->helperText('Optional endpoint where submission JSON will be pushed with automated exponential retries.')
-                    ->url(),
+                    ->rule(new ValidWebhookUrl),
                 TextInput::make('webhook_secret')
                     ->label('Webhook HMAC Secret')
                     ->placeholder('e.g. whsec_...')

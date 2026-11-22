@@ -9,7 +9,9 @@ use App\Models\Form;
 use App\Models\Step;
 use App\Models\Submission;
 use App\Models\User;
+use App\Rules\ValidWebhookUrl;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\TransientToken;
 
@@ -299,6 +301,17 @@ class McpServerService
         $type = $args['type'] ?? 'endpoint';
         $isEncrypted = (bool) ($args['is_encrypted'] ?? false);
         $webhookUrl = $args['webhook_url'] ?? null;
+
+        if (! empty($webhookUrl)) {
+            $validator = Validator::make(
+                ['webhook_url' => $webhookUrl],
+                ['webhook_url' => ['url', new ValidWebhookUrl]]
+            );
+
+            if ($validator->fails()) {
+                throw new \InvalidArgumentException($validator->errors()->first('webhook_url'));
+            }
+        }
 
         $form = Form::create([
             'user_id' => $user->id,
