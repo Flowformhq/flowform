@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\Field;
-use App\Models\FieldType;
+use App\Jobs\DispatchFormWebhook;
 use App\Models\Form;
 use App\Models\Step;
 use App\Models\Submission;
+use App\Rules\ValidWebhookUrl;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class McpServerService
 {
     public const PROTOCOL_VERSION = '2024-11-05';
+
     public const SERVER_NAME = 'flowform-mcp';
+
     public const SERVER_VERSION = '1.0.0';
 
     /**
@@ -42,7 +45,7 @@ class McpServerService
 
         return match ($method) {
             'initialize' => $this->handleInitialize($id),
-            'ping' => ['jsonrpc' => '2.0', 'id' => $id, 'result' => new \stdClass()],
+            'ping' => ['jsonrpc' => '2.0', 'id' => $id, 'result' => new \stdClass],
             'tools/list' => $this->handleToolsList($id),
             'tools/call' => $this->handleToolsCall($id, $params),
             default => [
@@ -265,6 +268,17 @@ class McpServerService
         $isEncrypted = (bool) ($args['is_encrypted'] ?? false);
         $webhookUrl = $args['webhook_url'] ?? null;
 
+        if (! empty($webhookUrl)) {
+            $validator = Validator::make(
+                ['webhook_url' => $webhookUrl],
+                ['webhook_url' => ['url', new ValidWebhookUrl]]
+            );
+
+            if ($validator->fails()) {
+                throw new \InvalidArgumentException($validator->errors()->first('webhook_url'));
+            }
+        }
+
         $form = Form::create([
             'name' => $name,
             'slug' => $slug,
@@ -272,7 +286,7 @@ class McpServerService
             'is_active' => true,
             'is_encrypted' => $isEncrypted,
             'webhook_url' => $webhookUrl,
-            'webhook_secret' => $webhookUrl ? 'whsec_' . Str::random(24) : null,
+            'webhook_secret' => $webhookUrl ? 'whsec_'.Str::random(24) : null,
         ]);
 
         // If wizard mode and steps provided, create steps
@@ -308,7 +322,7 @@ class McpServerService
             ->orWhere('uuid', $slug)
             ->firstOrFail();
 
-        $submission = new Submission();
+        $submission = new Submission;
         $submission->form_id = $form->id;
         $submission->status = 'completed';
         $submission->is_encrypted = (bool) $form->is_encrypted;
@@ -323,7 +337,7 @@ class McpServerService
         // Dispatch webhook if configured
         if (! empty($form->webhook_url)) {
             try {
-                \App\Jobs\DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $data);
             } catch (\Throwable $e) {
                 // Ignore queue exceptions in test
             }

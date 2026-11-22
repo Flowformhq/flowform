@@ -14,6 +14,10 @@ return [
         'cron' => env('FLOWFORM_TELEMETRY_CRON', '0 0 * * *'),
     ],
 
+    'webhooks' => [
+        'allow_private_targets' => (bool) env('FLOWFORM_WEBHOOKS_ALLOW_PRIVATE_TARGETS', false),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Allowed Redirect Hosts
