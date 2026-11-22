@@ -3,6 +3,10 @@
 return [
     'version' => env('FLOWFORM_VERSION', '0.1.0'),
 
+    'metering' => [
+        'enabled' => (bool) env('FLOWFORM_METERING_ENABLED', false),
+    ],
+
     'telemetry' => [
         'enabled' => (bool) env('FLOWFORM_TELEMETRY_ENABLED', true),
 
