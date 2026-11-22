@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use App\Services\McpServerService;
 use Illuminate\Console\Command;
 
@@ -14,7 +15,7 @@ class McpServeCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'mcp:serve';
+    protected $signature = 'mcp:serve {--user= : Email of the FlowForm user this MCP session acts as}';
 
     /**
      * The console command description.
@@ -28,15 +29,22 @@ class McpServeCommand extends Command
      */
     public function handle(McpServerService $mcpService): int
     {
+        $user = User::where('email', (string) $this->option('user'))->first();
+        if (! $user) {
+            $this->error('Pass --user=<email> of an existing FlowForm user.');
+
+            return Command::FAILURE;
+        }
+
         while (($line = fgets(STDIN)) !== false) {
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 continue;
             }
 
-            $response = $mcpService->handleMessage($trimmed);
+            $response = $mcpService->handleLocalMessage($trimmed, $user);
             if ($response !== null) {
-                fwrite(STDOUT, json_encode($response, JSON_UNESCAPED_SLASHES) . "\n");
+                fwrite(STDOUT, json_encode($response, JSON_UNESCAPED_SLASHES)."\n");
                 fflush(STDOUT);
             }
         }
