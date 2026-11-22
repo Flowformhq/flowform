@@ -7,6 +7,10 @@ namespace App\Http\Resources\Api;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property-read string|null $captcha_provider
+ * @property-read string|null $captcha_site_key
+ */
 class FormSchemaResource extends JsonResource
 {
     /**
