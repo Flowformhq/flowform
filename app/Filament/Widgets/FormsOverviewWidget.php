@@ -26,31 +26,45 @@ class FormsOverviewWidget extends StatsOverviewWidget
         $activeForms = (clone $formsQuery)->where('is_active', true)->count();
         $thisMonthSubmissions = (clone $submissionsQuery)->where('created_at', '>=', now()->startOfMonth())->count();
 
-        $planLabel = $user?->isPro() ? 'Pro Tier' : 'Free Tier';
-        $quota = $user?->isPro() ? '10,000 / mo' : '50 / mo';
-        $planColor = $user?->isPro() ? 'success' : 'warning';
-        $planDesc = $user?->isPro()
-            ? 'USDC / USDT Stablecoin plan active'
-            : "{$thisMonthSubmissions} / 50 free monthly used";
+        $stats = [];
+        $meteringEnabled = (bool) config('flowform.metering.enabled', false);
 
-        $credits = $user?->credits_balance ?? 0;
-        $estEmails = $user?->estimatedEmailSubmissions() ?? 0;
-        $estWebhooks = $user?->estimatedWebhookSubmissions() ?? 0;
+        if ($meteringEnabled) {
+            $planLabel = $user?->isPro() ? 'Pro Tier' : 'Free Tier';
+            $quota = $user?->isPro() ? '10,000 / mo' : '50 / mo';
+            $planColor = $user?->isPro() ? 'success' : 'warning';
+            $planDesc = $user?->isPro()
+                ? 'USDC / USDT Stablecoin plan active'
+                : "{$thisMonthSubmissions} / 50 free monthly used";
 
-        return [
-            Stat::make('Your Plan', $planLabel)
+            $credits = $user?->credits_balance ?? 0;
+            $estEmails = $user?->estimatedEmailSubmissions() ?? 0;
+            $estWebhooks = $user?->estimatedWebhookSubmissions() ?? 0;
+
+            $stats[] = Stat::make('Your Plan', $planLabel)
                 ->description($planDesc)
-                ->color($planColor),
-            Stat::make('Pay-As-You-Go Credits', number_format($credits))
-                ->description("~" . number_format($estEmails) . " emails OR ~" . number_format($estWebhooks) . " webhooks")
+                ->color($planColor);
+
+            $stats[] = Stat::make('Pay-As-You-Go Credits', number_format($credits))
+                ->description('~'.number_format($estEmails).' emails OR ~'.number_format($estWebhooks).' webhooks')
                 ->descriptionIcon('heroicon-m-bolt')
-                ->color($credits > 100 ? 'success' : ($credits > 0 ? 'warning' : 'danger')),
-            Stat::make('Active Forms', $activeForms)
-                ->description("Total forms: {$totalForms}")
-                ->color('info'),
-            Stat::make('Monthly Ingest', $thisMonthSubmissions)
+                ->color($credits > 100 ? 'success' : ($credits > 0 ? 'warning' : 'danger'));
+        }
+
+        $stats[] = Stat::make('Active Forms', $activeForms)
+            ->description("Total forms: {$totalForms}")
+            ->color('info');
+
+        if ($meteringEnabled) {
+            $stats[] = Stat::make('Monthly Ingest', $thisMonthSubmissions)
                 ->description("Limit: {$quota}")
-                ->color($thisMonthSubmissions >= 50 && ! $user?->isPro() && $credits <= 0 ? 'danger' : 'success'),
-        ];
+                ->color($thisMonthSubmissions >= 50 && ! $user?->isPro() && $credits <= 0 ? 'danger' : 'success');
+        } else {
+            $stats[] = Stat::make('Monthly Ingest', $thisMonthSubmissions)
+                ->description('Submissions this month')
+                ->color('success');
+        }
+
+        return $stats;
     }
 }

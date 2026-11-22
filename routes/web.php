@@ -3,12 +3,21 @@
 use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\NotificationVerificationController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect('/admin');
 });
+
+Route::get('notifications/verify/{recipient}', [NotificationVerificationController::class, 'show'])
+    ->name('notifications.verify')
+    ->middleware('signed');
+
+Route::post('notifications/verify/{recipient}', [NotificationVerificationController::class, 'verify'])
+    ->name('notifications.verify.confirm')
+    ->middleware('signed');
 
 Route::get('admin/mail-settings-page', function () {
     return redirect('/admin/mail-settings');
@@ -26,12 +35,14 @@ Route::middleware(['web', 'guest'])->group(function () {
         ->name('social.callback');
 });
 
-Route::middleware(['web', 'auth'])->group(function () {
-    Route::get('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
-    Route::get('billing/success', [BillingController::class, 'success'])->name('billing.success');
-    Route::get('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
-});
+if (config('flowform.metering.enabled', false)) {
+    Route::middleware(['web', 'auth'])->group(function () {
+        Route::get('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('billing/success', [BillingController::class, 'success'])->name('billing.success');
+        Route::get('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
+    });
 
-Route::post('api/v1/zoneless/webhook', [BillingController::class, 'webhook'])
-    ->withoutMiddleware([PreventRequestForgery::class])
-    ->name('zoneless.webhook');
+    Route::post('api/v1/zoneless/webhook', [BillingController::class, 'webhook'])
+        ->withoutMiddleware([PreventRequestForgery::class])
+        ->name('zoneless.webhook');
+}
