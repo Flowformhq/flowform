@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\FormController;
+use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Api\SubmissionController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,6 +11,20 @@ Route::prefix('v1')->group(function () {
         Route::get('forms/{uuid}/schema', [FormController::class, 'schema']);
         Route::get('forms/{slug}/by-slug', [FormController::class, 'showBySlug']);
         Route::get('forms/{uuid}', [FormController::class, 'show']);
+
+        // Headless Endpoint Form Submission
+        Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
+            ->middleware('throttle:endpoint-submissions')
+            ->name('api.forms.endpoint.submit');
+
+        // Model Context Protocol (MCP) JSON-RPC Endpoint for AI Agents
+        Route::post('mcp', [\App\Http\Controllers\Api\McpController::class, 'handle'])
+            ->middleware('throttle:api-public')
+            ->name('api.mcp');
+
+        // Public Compliance DPA & Safeguards
+        Route::get('compliance/dpa', [\App\Http\Controllers\Api\ComplianceController::class, 'dpa'])
+            ->name('api.compliance.dpa');
 
         // Public / Guest Submissions for active forms
         Route::post('public/submissions', [SubmissionController::class, 'store']);
@@ -29,5 +44,11 @@ Route::prefix('v1')->group(function () {
         Route::post('submissions/{uuid}/advance', [SubmissionController::class, 'advance']);
         Route::post('submissions/{uuid}/retreat', [SubmissionController::class, 'retreat']);
         Route::get('submissions/{uuid}/conditions', [SubmissionController::class, 'conditions']);
+
+        // GDPR & HIPAA Compliance API
+        Route::get('compliance/gdpr/export', [\App\Http\Controllers\Api\ComplianceController::class, 'export'])
+            ->name('api.compliance.gdpr.export');
+        Route::post('compliance/gdpr/erasure', [\App\Http\Controllers\Api\ComplianceController::class, 'erasure'])
+            ->name('api.compliance.gdpr.erasure');
     });
 });

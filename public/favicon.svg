@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="favGrad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <style>
+      .bg { fill: #0f172a; stroke: #334155; }
+      @media (prefers-color-scheme: light) {
+        .bg { fill: #ffffff; stroke: #cbd5e1; }
+      }
+    </style>
+  </defs>
+  
+  <rect class="bg" x="2" y="2" width="44" height="44" rx="12" stroke-width="2" />
+  <path d="M14 17C14 14.5 16 13 19 13H29C32 13 34 14.8 34 17.5C34 20.2 32 22 29 22H19C16 22 14 23.8 14 26.5C14 29.2 16 31 19 31H31" 
+        stroke="url(#favGrad)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="14" cy="17" r="2.2" fill="#06b6d4" />
+  <circle cx="31" cy="31" r="2.8" fill="#38bdf8" />
+</svg>

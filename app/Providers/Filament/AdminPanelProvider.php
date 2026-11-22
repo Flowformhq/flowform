@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,16 +30,19 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
+            ->registration()
+            ->passwordReset()
+            ->profile()
             ->brandName('FlowForm')
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2.25rem')
-            ->favicon(asset('brand/flowform-icon.svg'))
+            ->favicon('/brand/flowform-icon.svg')
             ->colors([
                 'primary' => Color::Cyan,
                 'gray' => Color::Slate,
             ])
-            ->font('Inter')
+            ->font('Google Sans Text')
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
@@ -66,11 +70,23 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->renderHook(
-                'panels::head.done',
+                'panels::head.end',
                 fn (): string => view('filament.admin.styles')->render(),
             )
             ->renderHook(
+                'panels::global-search.before',
+                fn (): string => view('filament.admin.plan-badge')->render(),
+            )
+            ->renderHook(
+                'panels::auth.login.form.before',
+                fn (): string => view('filament.admin.demo-banner')->render(),
+            )
+            ->renderHook(
                 'panels::auth.login.form.after',
+                fn (): string => view('auth.social-login')->render(),
+            )
+            ->renderHook(
+                'panels::auth.register.form.after',
                 fn (): string => view('auth.social-login')->render(),
             );
     }

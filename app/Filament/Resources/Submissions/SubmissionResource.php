@@ -7,12 +7,15 @@ namespace App\Filament\Resources\Submissions;
 use App\Filament\Resources\Submissions\Pages\ListSubmissions;
 use App\Filament\Resources\Submissions\Pages\ViewSubmission;
 use App\Filament\Resources\Submissions\RelationManagers\SubmissionValuesRelationManager;
+use App\Filament\Resources\Submissions\Schemas\SubmissionForm;
 use App\Filament\Resources\Submissions\Tables\SubmissionsTable;
 use App\Models\Submission;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SubmissionResource extends Resource
 {
@@ -23,6 +26,11 @@ class SubmissionResource extends Resource
     protected static \UnitEnum|string|null $navigationGroup = 'Submissions';
 
     protected static ?int $navigationSort = 1;
+
+    public static function form(Schema $schema): Schema
+    {
+        return SubmissionForm::configure($schema);
+    }
 
     public static function table(Table $table): Table
     {
@@ -42,5 +50,11 @@ class SubmissionResource extends Resource
             'index' => ListSubmissions::route('/'),
             'view' => ViewSubmission::route('/{record}'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->when(! auth()->user()?->is_admin, fn ($query) => $query->whereHas('form', fn ($q) => $q->where('user_id', auth()->id())));
     }
 }

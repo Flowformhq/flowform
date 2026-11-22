@@ -20,6 +20,7 @@ class SubmissionExporter extends Exporter
             ExportColumn::make('form.name')->label('Form'),
             ExportColumn::make('status'),
             ExportColumn::make('current_step')->label('Current Step'),
+            ExportColumn::make('data')->label('Data')->formatStateUsing(fn ($state) => is_array($state) ? json_encode($state) : (string) $state),
             ExportColumn::make('created_at')->label('Submitted At'),
         ];
     }

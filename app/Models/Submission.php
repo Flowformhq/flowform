@@ -15,15 +15,60 @@ class Submission extends Model
 {
     protected $fillable = [
         'form_id',
+        'user_id',
         'uuid',
         'status',
+        'is_encrypted',
         'current_step',
+        'data',
         'meta',
     ];
 
     protected $casts = [
+        'is_encrypted' => 'boolean',
         'meta' => 'array',
     ];
+
+    /**
+     * Transparently decrypt AES-256 encrypted submission data on access.
+     */
+    public function getDataAttribute($value): ?array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        if ($this->is_encrypted) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($value);
+                return json_decode($decrypted, true) ?: [];
+            } catch (\Throwable $e) {
+                return ['_encrypted' => true, '_notice' => 'Encrypted PII at rest (AES-256)'];
+            }
+        }
+
+        if (is_string($value)) {
+            return json_decode($value, true) ?: [];
+        }
+
+        return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Transparently encrypt data payload with AES-256 before saving to database.
+     */
+    public function setDataAttribute($value): void
+    {
+        $shouldEncrypt = $this->is_encrypted || ($this->relationLoaded('form') && $this->form?->is_encrypted);
+
+        if ($shouldEncrypt) {
+            $this->attributes['is_encrypted'] = true;
+            $json = is_string($value) ? $value : json_encode($value);
+            $this->attributes['data'] = \Illuminate\Support\Facades\Crypt::encryptString($json);
+        } else {
+            $this->attributes['data'] = is_array($value) ? json_encode($value) : $value;
+        }
+    }
 
     protected static function booted(): void
     {
@@ -37,6 +82,11 @@ class Submission extends Model
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function values(): HasMany

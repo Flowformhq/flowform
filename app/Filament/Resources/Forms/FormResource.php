@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class FormResource extends Resource
 {
@@ -51,5 +52,11 @@ class FormResource extends Resource
             'create' => CreateForm::route('/create'),
             'edit' => EditForm::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()));
     }
 }

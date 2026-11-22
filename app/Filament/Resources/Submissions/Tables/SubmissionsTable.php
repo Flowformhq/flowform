@@ -31,10 +31,22 @@ class SubmissionsTable
                         default => 'gray',
                     })
                     ->sortable(),
+                \Filament\Tables\Columns\IconColumn::make('is_encrypted')
+                    ->label('Encrypted')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-lock-open')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->tooltip(fn ($state) => $state ? 'Encrypted at rest (AES-256)' : 'Standard unencrypted storage'),
                 TextColumn::make('current_step')
                     ->label('Progress')
                     ->formatStateUsing(function ($state, $record) {
-                        $totalSteps = $record->form->stepCount();
+                        if ($record->form?->isEndpoint()) {
+                            return 'Endpoint';
+                        }
+
+                        $totalSteps = $record->form?->stepCount() ?? 0;
 
                         return $totalSteps > 0
                             ? "Step {$state} of {$totalSteps}"

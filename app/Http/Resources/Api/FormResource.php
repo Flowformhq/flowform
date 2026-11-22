@@ -18,6 +18,7 @@ class FormResource extends JsonResource
             'uuid' => $this->uuid,
             'name' => $this->name,
             'slug' => $this->slug,
+            'type' => $this->type ?? 'wizard',
             'description' => $this->description,
             'is_active' => $this->is_active,
             'version' => $this->version,

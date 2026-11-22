@@ -113,8 +113,8 @@ FLOWFORM_URL=http://localhost:8000 FLOWFORM_TOKEN=your-token npx tsx examples/si
 
 ## Tech Stack
 
-- **PHP 8.3** / **Laravel 13** — Backend framework
-- **Filament 4** — Admin panel
+- **PHP 8.4** / **Laravel 13** — Backend framework
+- **Filament 5** — Admin panel
 - **Laravel Sanctum** — API authentication
 - **Pest PHP** — Testing
 - **Laravel Pint** — Code style

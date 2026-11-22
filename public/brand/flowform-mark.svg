@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none">
+  <defs>
+    <linearGradient id="ffDarkGradMark" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+  </defs>
+  <path d="M10 32V10C10 6 13.5 3 18 3H29" 
+        stroke="url(#ffDarkGradMark)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M10 17.5H23" 
+        stroke="url(#ffDarkGradMark)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="29" cy="3" r="2.2" fill="#FFFFFF" />
+  <circle cx="23" cy="17.5" r="1.8" fill="#00F0FF" />
+</svg>

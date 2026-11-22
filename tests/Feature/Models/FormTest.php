@@ -104,3 +104,26 @@ test('form has submissions relationship', function () {
 
     expect($form->submissions)->toHaveCount(2);
 });
+
+test('form defaults to wizard type and helper methods work', function () {
+    $wizard = Form::create(['name' => 'Wizard Form']);
+    $endpoint = Form::create([
+        'name' => 'Endpoint Form',
+        'type' => 'endpoint',
+        'notification_email' => 'alerts@example.com',
+        'redirect_url' => 'https://example.com/thanks',
+    ]);
+
+    expect($wizard->type)->toBe('wizard')
+        ->and($wizard->isWizard())->toBeTrue()
+        ->and($wizard->isEndpoint())->toBeFalse();
+
+    expect($endpoint->type)->toBe('endpoint')
+        ->and($endpoint->isEndpoint())->toBeTrue()
+        ->and($endpoint->isWizard())->toBeFalse()
+        ->and($endpoint->notification_email)->toBe('alerts@example.com')
+        ->and($endpoint->redirect_url)->toBe('https://example.com/thanks');
+
+    expect(Form::wizard()->count())->toBe(1)
+        ->and(Form::endpoint()->count())->toBe(1);
+});
