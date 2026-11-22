@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class Form extends Model
@@ -27,14 +28,22 @@ class Form extends Model
         'encrypted_fields',
         'webhook_url',
         'webhook_secret',
+        'captcha_provider',
+        'captcha_secret',
+        'captcha_site_key',
         'is_active',
         'version',
+    ];
+
+    protected $hidden = [
+        'captcha_secret',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_encrypted' => 'boolean',
         'encrypted_fields' => 'array',
+        'captcha_secret' => 'encrypted',
     ];
 
     protected $attributes = [
@@ -48,10 +57,10 @@ class Form extends Model
                 $form->uuid = Str::uuid()->toString();
             }
             if (empty($form->access_key)) {
-                $form->access_key = 'ff_' . strtolower(Str::random(10));
+                $form->access_key = 'ff_'.strtolower(Str::random(10));
             }
             if (empty($form->slug)) {
-                $form->slug = Str::slug($form->name) ?: ('form-' . substr($form->uuid, 0, 8));
+                $form->slug = Str::slug($form->name) ?: ('form-'.substr($form->uuid, 0, 8));
             }
         });
     }
@@ -108,6 +117,47 @@ class Form extends Model
         return $this->type === 'wizard' || empty($this->type);
     }
 
+    public function hasCaptcha(): bool
+    {
+        return ! empty($this->captcha_provider) && ! empty($this->captcha_secret);
+    }
+
+    public function verifyCaptcha(?string $token, ?string $remoteIp = null): bool
+    {
+        if (empty($token) || ! $this->hasCaptcha()) {
+            return false;
+        }
+
+        $endpoint = match ($this->captcha_provider) {
+            'turnstile' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            'hcaptcha' => 'https://hcaptcha.com/siteverify',
+            default => null,
+        };
+
+        if (! $endpoint) {
+            return false;
+        }
+
+        try {
+            $params = [
+                'secret' => $this->captcha_secret,
+                'response' => $token,
+            ];
+
+            if ($remoteIp) {
+                $params['remoteip'] = $remoteIp;
+            }
+
+            $response = Http::asForm()->timeout(5)->post($endpoint, $params);
+
+            return (bool) $response->json('success', false);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
     /**
      * Check if a given request origin or referer is permitted by allowed_domains.
      */
@@ -134,7 +184,7 @@ class Form extends Model
             // Wildcard matching e.g. *.myportfolio.com
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
                     return true;
                 }
             }

@@ -38,6 +38,7 @@ class FormForm
                             return 'Save form to generate unique endpoint URL';
                         }
                         $id = $record->access_key ?: $record->slug;
+
                         return url("/f/{$id}");
                     })
                     ->readOnly()
@@ -60,6 +61,27 @@ class FormForm
                     ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
                     ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
+                Select::make('captcha_provider')
+                    ->label('Bot Protection (Captcha)')
+                    ->options([
+                        'turnstile' => 'Cloudflare Turnstile',
+                        'hcaptcha' => 'hCaptcha',
+                    ])
+                    ->placeholder('None')
+                    ->live()
+                    ->helperText('Server-side token verification before accepting submissions.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('captcha_site_key')
+                    ->label('Captcha Site Key')
+                    ->placeholder('e.g. 0x4AAAAAA...')
+                    ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
+                TextInput::make('captcha_secret')
+                    ->label('Captcha Secret Key')
+                    ->password()
+                    ->revealable()
+                    ->placeholder('e.g. 0x4AAAAAA...')
+                    ->helperText('Encrypted at rest. Never exposed to clients or APIs.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
                 TextInput::make('webhook_url')
                     ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')
                     ->placeholder('https://api.yourdomain.com/webhooks/intake')

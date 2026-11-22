@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DispatchFormWebhook;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
+use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +52,32 @@ class PublicEndpointController extends Controller
             return $this->respondSuccess($request, $form, null);
         }
 
+        // 3b. Server-Side Captcha Verification (Cloudflare Turnstile, hCaptcha)
+        if ($form->hasCaptcha()) {
+            $token = match ($form->captcha_provider) {
+                'turnstile' => $request->input('cf-turnstile-response')
+                    ?: $request->input('_turnstile')
+                    ?: $request->input('g-recaptcha-response'),
+                'hcaptcha' => $request->input('h-captcha-response')
+                    ?: $request->input('_hcaptcha'),
+                default => null,
+            };
+
+            if (empty($token)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification token missing.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            if (! $form->verifyCaptcha($token, $request->ip())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification failed.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
         // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
         $hasEmail = ! empty($form->notification_email);
         if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
@@ -60,7 +88,19 @@ class PublicEndpointController extends Controller
         }
 
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
-        $reservedKeys = ['_gotcha', '_honeypot', '_next', '_redirect', '_token', '_method'];
+        $reservedKeys = [
+            '_gotcha',
+            '_honeypot',
+            '_next',
+            '_redirect',
+            '_token',
+            '_method',
+            'cf-turnstile-response',
+            '_turnstile',
+            'g-recaptcha-response',
+            'h-captcha-response',
+            '_hcaptcha',
+        ];
         $data = collect($request->all())->except($reservedKeys)->all();
 
         $submission = new Submission([
@@ -82,7 +122,7 @@ class PublicEndpointController extends Controller
             $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
             if (! empty($recipients)) {
                 try {
-                    \App\Models\MailSetting::applyActiveConfig();
+                    MailSetting::applyActiveConfig();
                     Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
                 } catch (\Throwable $e) {
                     report($e);
@@ -93,7 +133,7 @@ class PublicEndpointController extends Controller
         // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
         if (! empty($form->webhook_url)) {
             try {
-                \App\Jobs\DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $data);
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -192,7 +232,7 @@ class PublicEndpointController extends Controller
             // Wildcard matching e.g. *.buildeon.solutions
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
                     return true;
                 }
             }
