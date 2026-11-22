@@ -11,6 +11,7 @@ use Illuminate\Contracts\Mail\Mailer;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Mockery\MockInterface;
 
 beforeEach(function () {
     Mail::fake();
@@ -112,24 +113,11 @@ test('queued SubmissionReceived uses active MailSetting dynamic mailer and from-
     expect($envelope->from->address)->toEqual('noreply@activebrand.com');
     expect($envelope->from->name)->toEqual('Active Brand Alerts');
 
-    $capturedMailerName = null;
-    $fakeFactory = new class($capturedMailerName) implements Factory
-    {
-        public function __construct(public &$captured) {}
+    /** @var Factory&MockInterface $factory */
+    $factory = Mockery::mock(Factory::class);
+    $factory->shouldReceive('mailer')->once()->with('flowform')->andReturn(Mockery::mock(Mailer::class)->shouldReceive('send')->getMock());
 
-        public function mailer($name = null)
-        {
-            $this->captured = $name;
-            $fakeMailer = Mockery::mock(Mailer::class);
-            $fakeMailer->shouldReceive('send')->andReturnNull();
-
-            return $fakeMailer;
-        }
-    };
-
-    $mailable->send($fakeFactory);
-
-    expect($capturedMailerName)->toEqual('flowform');
+    $mailable->send($factory);
     expect(config('mail.mailers.flowform.host'))->toEqual('smtp.queued-relay.com');
     expect(config('mail.mailers.flowform.port'))->toEqual(2525);
     expect(config('mail.mailers.flowform.username'))->toEqual('queued_user');
@@ -157,24 +145,11 @@ test('queued SubmissionReceived falls back to .env mailer when no active MailSet
     $envelope = $mailable->envelope();
     expect($envelope->from)->toBeNull();
 
-    $capturedMailerName = 'initial';
-    $fakeFactory = new class($capturedMailerName) implements Factory
-    {
-        public function __construct(public &$captured) {}
+    /** @var Factory&MockInterface $factory */
+    $factory = Mockery::mock(Factory::class);
+    $factory->shouldReceive('mailer')->once()->with(null)->andReturn(Mockery::mock(Mailer::class)->shouldReceive('send')->getMock());
 
-        public function mailer($name = null)
-        {
-            $this->captured = $name;
-            $fakeMailer = Mockery::mock(Mailer::class);
-            $fakeMailer->shouldReceive('send')->andReturnNull();
-
-            return $fakeMailer;
-        }
-    };
-
-    $mailable->send($fakeFactory);
-
-    expect($capturedMailerName)->toBeNull();
+    $mailable->send($factory);
 });
 
 test('dynamic mailer keeps provider credentials on the mailer, not global services config', function (string $driver, array $attributes, array $expected) {

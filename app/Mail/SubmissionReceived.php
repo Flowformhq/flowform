@@ -8,6 +8,8 @@ use App\Models\Form;
 use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Mail\Factory;
+use Illuminate\Contracts\Mail\Mailer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -54,16 +56,14 @@ class SubmissionReceived extends Mailable implements ShouldQueue
         );
     }
 
+    /**
+     * @param  Factory|Mailer  $mailer
+     */
     public function send($mailer)
     {
         $activeSetting = MailSetting::getActive();
-
-        if ($activeSetting) {
-            $activeSetting->applyDynamicMailer('flowform');
-            $this->mailer('flowform');
-        } else {
-            $this->mailer(null);
-        }
+        $activeSetting?->applyDynamicMailer('flowform');
+        $this->mailer = $activeSetting ? 'flowform' : null;
 
         return parent::send($mailer);
     }
