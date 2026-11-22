@@ -6,6 +6,7 @@ use App\Filament\Widgets\FormsOverviewWidget;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Models\User;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -118,7 +119,7 @@ test('FormsOverviewWidget respects metering config', function () {
     $widget = new class extends FormsOverviewWidget
     {
         /**
-         * @return array<int, \Filament\Widgets\StatsOverviewWidget\Stat>
+         * @return array<int, Stat>
          */
         public function testGetStats(): array
         {
