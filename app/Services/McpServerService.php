@@ -268,6 +268,10 @@ class McpServerService
             'type' => $form->type,
             'endpoint' => url("/f/{$form->slug}"),
             'is_encrypted' => (bool) $form->is_encrypted,
+            'captcha' => $form->captcha_provider ? [
+                'provider' => $form->captcha_provider,
+                'site_key' => $form->captcha_site_key,
+            ] : null,
             'steps' => $form->steps->map(fn ($step) => [
                 'step_number' => $step->step_number,
                 'title' => $step->title,

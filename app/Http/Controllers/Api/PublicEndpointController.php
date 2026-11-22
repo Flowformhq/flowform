@@ -51,6 +51,32 @@ class PublicEndpointController extends Controller
             return $this->respondSuccess($request, $form, null);
         }
 
+        // 3b. Server-Side Captcha Verification (Cloudflare Turnstile, hCaptcha)
+        if ($form->hasCaptcha()) {
+            $token = match ($form->captcha_provider) {
+                'turnstile' => $request->input('cf-turnstile-response')
+                    ?: $request->input('_turnstile')
+                    ?: $request->input('g-recaptcha-response'),
+                'hcaptcha' => $request->input('h-captcha-response')
+                    ?: $request->input('_hcaptcha'),
+                default => null,
+            };
+
+            if (empty($token)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification token missing.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            if (! $form->verifyCaptcha($token, $request->ip())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification failed.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
         // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
         $hasEmail = ! empty($form->notification_email);
         if (config('flowform.metering.enabled', false)) {
@@ -63,7 +89,19 @@ class PublicEndpointController extends Controller
         }
 
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
-        $reservedKeys = ['_gotcha', '_honeypot', '_next', '_redirect', '_token', '_method'];
+        $reservedKeys = [
+            '_gotcha',
+            '_honeypot',
+            '_next',
+            '_redirect',
+            '_token',
+            '_method',
+            'cf-turnstile-response',
+            '_turnstile',
+            'g-recaptcha-response',
+            'h-captcha-response',
+            '_hcaptcha',
+        ];
         $data = collect($request->all())->except($reservedKeys)->all();
 
         $submission = new Submission([

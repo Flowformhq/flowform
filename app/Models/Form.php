@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -29,14 +30,22 @@ class Form extends Model
         'encrypted_fields',
         'webhook_url',
         'webhook_secret',
+        'captcha_provider',
+        'captcha_secret',
+        'captcha_site_key',
         'is_active',
         'version',
+    ];
+
+    protected $hidden = [
+        'captcha_secret',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_encrypted' => 'boolean',
         'encrypted_fields' => 'array',
+        'captcha_secret' => 'encrypted',
     ];
 
     protected $attributes = [
@@ -166,6 +175,47 @@ class Form extends Model
     public function isWizard(): bool
     {
         return $this->type === 'wizard' || empty($this->type);
+    }
+
+    public function hasCaptcha(): bool
+    {
+        return ! empty($this->captcha_provider);
+    }
+
+    public function verifyCaptcha(?string $token, ?string $remoteIp = null): bool
+    {
+        if (empty($token) || ! $this->hasCaptcha() || empty($this->captcha_secret)) {
+            return false;
+        }
+
+        $endpoint = match ($this->captcha_provider) {
+            'turnstile' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            'hcaptcha' => 'https://api.hcaptcha.com/siteverify',
+            default => null,
+        };
+
+        if (! $endpoint) {
+            return false;
+        }
+
+        try {
+            $params = [
+                'secret' => $this->captcha_secret,
+                'response' => $token,
+            ];
+
+            if ($remoteIp) {
+                $params['remoteip'] = $remoteIp;
+            }
+
+            $response = Http::asForm()->timeout(5)->post($endpoint, $params);
+
+            return (bool) $response->json('success', false);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     /**
