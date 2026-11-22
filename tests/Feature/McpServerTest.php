@@ -3,20 +3,25 @@
 declare(strict_types=1);
 
 use App\Models\Form;
-use App\Models\Step;
+use App\Models\Submission;
+use App\Models\User;
 use App\Services\McpServerService;
+use Illuminate\Testing\TestResponse;
+use Laravel\Sanctum\Sanctum;
+use Symfony\Component\HttpFoundation\Response;
 
 test('MCP server responds to initialize handshake', function () {
-    $service = new McpServerService();
+    $service = new McpServerService;
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage([
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 1,
         'method' => 'initialize',
         'params' => [
             'protocolVersion' => '2024-11-05',
         ],
-    ]);
+    ]), $user);
 
     expect($response['jsonrpc'])->toEqual('2.0');
     expect($response['id'])->toEqual(1);
@@ -25,13 +30,14 @@ test('MCP server responds to initialize handshake', function () {
 });
 
 test('MCP server lists all 5 native tools', function () {
-    $service = new McpServerService();
+    $service = new McpServerService;
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage([
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 2,
         'method' => 'tools/list',
-    ]);
+    ]), $user);
 
     expect($response['jsonrpc'])->toEqual('2.0');
     $toolNames = collect($response['result']['tools'])->pluck('name')->toArray();
@@ -44,9 +50,10 @@ test('MCP server lists all 5 native tools', function () {
 });
 
 test('MCP server create_form tool programmatically creates form', function () {
-    $service = new McpServerService();
+    $service = new McpServerService;
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage([
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 3,
         'method' => 'tools/call',
@@ -59,7 +66,7 @@ test('MCP server create_form tool programmatically creates form', function () {
                 'is_encrypted' => true,
             ],
         ],
-    ]);
+    ]), $user);
 
     expect($response['id'])->toEqual(3);
     $text = $response['result']['content'][0]['text'];
@@ -70,13 +77,16 @@ test('MCP server create_form tool programmatically creates form', function () {
     expect($data['form']['is_encrypted'])->toBeTrue();
 
     $this->assertDatabaseHas('forms', [
+        'user_id' => $user->id,
         'slug' => 'ai-generated-intake',
         'is_encrypted' => true,
     ]);
 });
 
 test('MCP server submit_form tool executes runtime submission', function () {
+    $owner = User::factory()->create();
     $form = Form::create([
+        'user_id' => $owner->id,
         'name' => 'Agent Booking',
         'slug' => 'agent-booking',
         'type' => 'endpoint',
@@ -84,9 +94,9 @@ test('MCP server submit_form tool executes runtime submission', function () {
         'is_encrypted' => true,
     ]);
 
-    $service = new McpServerService();
+    $service = new McpServerService;
 
-    $response = $service->handleMessage([
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 4,
         'method' => 'tools/call',
@@ -100,7 +110,7 @@ test('MCP server submit_form tool executes runtime submission', function () {
                 ],
             ],
         ],
-    ]);
+    ]), $owner);
 
     expect($response['id'])->toEqual(4);
     $text = $response['result']['content'][0]['text'];
@@ -117,6 +127,8 @@ test('MCP server submit_form tool executes runtime submission', function () {
 });
 
 test('POST /api/v1/mcp endpoint handles HTTP JSON-RPC calls', function () {
+    Sanctum::actingAs(User::factory()->create());
+
     $response = $this->postJson('/api/v1/mcp', [
         'jsonrpc' => '2.0',
         'id' => 10,
@@ -127,4 +139,99 @@ test('POST /api/v1/mcp endpoint handles HTTP JSON-RPC calls', function () {
         ->assertJsonPath('jsonrpc', '2.0')
         ->assertJsonPath('id', 10)
         ->assertJsonPath('result.serverInfo.name', 'flowform-mcp');
+});
+
+/**
+ * @param  array<string, mixed>  $arguments
+ * @return array<string, mixed>
+ */
+function mcpToolCall(string $tool, array $arguments = []): array
+{
+    return ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => ['name' => $tool, 'arguments' => $arguments]];
+}
+
+/**
+ * @param  TestResponse<Response>  $response
+ * @return array<int|string, mixed>
+ */
+function mcpToolResult(TestResponse $response): array
+{
+    return json_decode($response->json('result.content.0.text'), true) ?? [];
+}
+
+test('POST /api/v1/mcp rejects unauthenticated requests', function (string $method) {
+    $form = Form::create(['name' => 'Private', 'slug' => 'private', 'type' => 'endpoint', 'is_active' => true]);
+    Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['secret' => 'x']]);
+
+    $this->postJson('/api/v1/mcp', mcpToolCall('list_submissions', ['form_slug' => 'private']))->assertUnauthorized();
+    $this->post('/api/v1/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => $method])->assertUnauthorized();
+})->with(['initialize', 'tools/list']);
+
+test('MCP tools never expose another user\'s forms or submissions', function () {
+    $alice = User::factory()->create();
+    $bob = User::factory()->create();
+    $aliceForm = Form::create(['user_id' => $alice->id, 'name' => 'Alice', 'slug' => 'alice-form', 'type' => 'endpoint', 'is_active' => true]);
+    Submission::create(['form_id' => $aliceForm->id, 'status' => 'completed', 'data' => ['email' => 'alice@example.com']]);
+
+    Sanctum::actingAs($bob, ['*']);
+
+    expect(mcpToolResult($this->postJson('/api/v1/mcp', mcpToolCall('list_forms'))))->toBe([]);
+
+    foreach ([
+        mcpToolCall('list_submissions', ['form_slug' => 'alice-form']),
+        mcpToolCall('list_submissions', ['form_slug' => $aliceForm->uuid]),
+        mcpToolCall('get_form_schema', ['identifier' => 'alice-form']),
+        mcpToolCall('submit_form', ['form_slug' => 'alice-form', 'data' => ['x' => 1]]),
+    ] as $call) {
+        $response = $this->postJson('/api/v1/mcp', $call)->assertOk();
+        expect($response->json('result.isError'))->toBeTrue();
+        expect($response->json('result.content.0.text'))->not->toContain('alice@example.com');
+    }
+
+    expect(Submission::where('form_id', $aliceForm->id)->count())->toBe(1);
+});
+
+test('MCP owner can list own submissions and admin can see all forms', function () {
+    $alice = User::factory()->create();
+    $admin = User::factory()->create(['is_admin' => true]);
+    $form = Form::create(['user_id' => $alice->id, 'name' => 'Alice', 'slug' => 'alice-form', 'type' => 'endpoint', 'is_active' => true]);
+    Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['email' => 'alice@example.com']]);
+
+    Sanctum::actingAs($alice, ['*']);
+    expect(mcpToolResult($this->postJson('/api/v1/mcp', mcpToolCall('list_submissions', ['form_slug' => 'alice-form']))))->toHaveCount(1);
+
+    Sanctum::actingAs($admin, ['*']);
+    expect(collect(mcpToolResult($this->postJson('/api/v1/mcp', mcpToolCall('list_forms'))))->pluck('slug')->all())->toContain('alice-form');
+});
+
+test('MCP submit_form rejects inactive forms', function () {
+    $alice = User::factory()->create();
+    Form::create(['user_id' => $alice->id, 'name' => 'Off', 'slug' => 'off-form', 'type' => 'endpoint', 'is_active' => false]);
+
+    Sanctum::actingAs($alice, ['*']);
+    $response = $this->postJson('/api/v1/mcp', mcpToolCall('submit_form', ['form_slug' => 'off-form', 'data' => ['x' => 1]]));
+
+    expect($response->json('result.isError'))->toBeTrue();
+    expect(Submission::count())->toBe(0);
+});
+
+test('MCP tools require the matching token ability', function () {
+    $alice = User::factory()->create();
+    Form::create(['user_id' => $alice->id, 'name' => 'Alice', 'slug' => 'alice-form', 'type' => 'endpoint', 'is_active' => true]);
+
+    Sanctum::actingAs($alice, ['forms:read']);
+
+    expect($this->postJson('/api/v1/mcp', mcpToolCall('list_forms'))->json('result.isError'))->toBeNull();
+
+    $denied = $this->postJson('/api/v1/mcp', mcpToolCall('list_submissions', ['form_slug' => 'alice-form']));
+    expect($denied->json('result.isError'))->toBeTrue();
+    expect($denied->json('result.content.0.text'))->toContain('submissions:read');
+
+    expect($this->postJson('/api/v1/mcp', mcpToolCall('create_form', ['name' => 'Nope']))->json('result.isError'))->toBeTrue();
+    $this->assertDatabaseMissing('forms', ['name' => 'Nope']);
+});
+
+test('mcp:serve requires an existing user', function () {
+    $this->artisan('mcp:serve')->assertFailed();
+    $this->artisan('mcp:serve', ['--user' => 'nobody@example.com'])->assertFailed();
 });

@@ -1,0 +1,1255 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to an undefined method Filament\\Schemas\\Components\\Component\:\:extraInputAttributes\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Filament/Pages/Auth/Login.php
+
+		-
+			message: '#^Property App\\Filament\\Pages\\MailSettingsPage\:\:\$testResult type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Filament/Pages/MailSettingsPage.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Pages/MailSettingsPage.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$form_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Filament/Resources/Fields/RelationManagers/ConditionsRelationManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Filament/Resources/Fields/RelationManagers/ConditionsRelationManager.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>access_key" in empty\(\) is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Resources/Forms/Schemas/FormForm.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>data" in empty\(\) is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Resources/Submissions/Schemas/SubmissionForm.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>meta" in empty\(\) is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Resources/Submissions/Schemas/SubmissionForm.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>credits_balance" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Widgets/FormsOverviewWidget.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>is_admin" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Widgets/FormsOverviewWidget.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>is_admin" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Filament/Widgets/SubmissionsOverviewWidget.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\MailSetting\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/ComplianceController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Http/Controllers/Api/ComplianceController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\MailSetting\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/ComplianceController.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\MailSetting\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Http/Controllers/Api/ComplianceController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:canReceiveSubmissions\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/PublicEndpointController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:deductCredits\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/PublicEndpointController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fields\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SubmissionController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SubmissionController.php
+
+		-
+			message: '#^Parameter \#2 \$socialiteUser of method App\\Http\\Controllers\\Auth\\SocialLoginController\:\:findOrCreateUser\(\) expects Laravel\\Socialite\\Two\\User, Laravel\\Socialite\\Contracts\\User given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Auth/SocialLoginController.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\ConditionResource\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/ConditionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\ConditionResource\:\:\$dependsOnField\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/ConditionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\ConditionResource\:\:\$operator\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/ConditionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\ConditionResource\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/ConditionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\EntityResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/EntityResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\EntityResource\:\:\$is_repeatable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/EntityResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\EntityResource\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/EntityResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\EntityResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/EntityResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldOptionResource\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldOptionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldOptionResource\:\:\$order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldOptionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldOptionResource\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldOptionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$config\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$is_repeatable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$is_required\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldResource\:\:\$placeholder\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldTypeResource\:\:\$component\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldTypeResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FieldTypeResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FieldTypeResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormResource\:\:\$version\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\FormSchemaResource\:\:\$version\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/FormSchemaResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$is_visible\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$meta\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$step_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\StepResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/StepResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$current_step\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$meta\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:\$values\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Call to an undefined method App\\Http\\Resources\\Api\\SubmissionDetailResource\:\:progressPercentage\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionDetailResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionResource\:\:\$current_step\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionResource\:\:\$meta\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Api\\SubmissionResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Call to an undefined method App\\Http\\Resources\\Api\\SubmissionResource\:\:progressPercentage\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Resources/Api/SubmissionResource.php
+
+		-
+			message: '#^Method App\\Jobs\\DispatchFormWebhook\:\:__construct\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Jobs/DispatchFormWebhook.php
+
+		-
+			message: '#^Property App\\Jobs\\DispatchFormWebhook\:\:\$backoff type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Jobs/DispatchFormWebhook.php
+
+		-
+			message: '#^Method App\\Models\\AuditLog\:\:record\(\) has parameter \$details with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Method App\\Models\\AuditLog\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Http\\Request\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Method App\\Models\\Condition\:\:dependsOnField\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Condition.php
+
+		-
+			message: '#^Method App\\Models\\Condition\:\:field\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Condition.php
+
+		-
+			message: '#^Method App\\Models\\Entity\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Entity.php
+
+		-
+			message: '#^Method App\\Models\\Entity\:\:records\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Entity.php
+
+		-
+			message: '#^Method App\\Models\\EntityRecord\:\:children\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/EntityRecord.php
+
+		-
+			message: '#^Method App\\Models\\EntityRecord\:\:entity\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/EntityRecord.php
+
+		-
+			message: '#^Method App\\Models\\EntityRecord\:\:parent\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/EntityRecord.php
+
+		-
+			message: '#^Method App\\Models\\EntityRecord\:\:submission\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/EntityRecord.php
+
+		-
+			message: '#^Method App\\Models\\EntityRecord\:\:submissionValues\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/EntityRecord.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:conditions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:dependsOnConditions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:fieldType\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:options\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:step\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\Field\:\:submissionValues\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Field.php
+
+		-
+			message: '#^Method App\\Models\\FieldOption\:\:field\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/FieldOption.php
+
+		-
+			message: '#^Method App\\Models\\FieldType\:\:fields\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/FieldType.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:entities\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:fields\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:firstStep\(\) should return App\\Models\\Step\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:reorderSteps\(\) has parameter \$stepIds with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeActive\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeActive\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeEndpoint\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeEndpoint\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeWizard\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:scopeWizard\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:steps\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:submissions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\Form\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Form.php
+
+		-
+			message: '#^Method App\\Models\\MailSetting\:\:getApiKeyAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/MailSetting.php
+
+		-
+			message: '#^Method App\\Models\\MailSetting\:\:getPasswordAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/MailSetting.php
+
+		-
+			message: '#^Method App\\Models\\MailSetting\:\:sendTestEmail\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/MailSetting.php
+
+		-
+			message: '#^Method App\\Models\\MailSetting\:\:setApiKeyAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/MailSetting.php
+
+		-
+			message: '#^Method App\\Models\\MailSetting\:\:setPasswordAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/MailSetting.php
+
+		-
+			message: '#^Method App\\Models\\SocialAccount\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/SocialAccount.php
+
+		-
+			message: '#^Method App\\Models\\Step\:\:fields\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Step.php
+
+		-
+			message: '#^Method App\\Models\\Step\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Step.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fields\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_encrypted\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:stepCount\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:entityRecords\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:evaluateConditions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:getDataAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:getDataAttribute\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:scopeCompleted\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:scopeCompleted\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:scopeDraft\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:scopeDraft\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:setDataAttribute\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\Submission\:\:values\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Submission.php
+
+		-
+			message: '#^Method App\\Models\\SubmissionValue\:\:entityRecord\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/SubmissionValue.php
+
+		-
+			message: '#^Method App\\Models\\SubmissionValue\:\:field\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/SubmissionValue.php
+
+		-
+			message: '#^Method App\\Models\\SubmissionValue\:\:submission\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/SubmissionValue.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:forms\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:socialAccounts\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Services\\ConditionEvaluator\:\:parseList\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/ConditionEvaluator.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ConditionResolver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$depends_on_field_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ConditionResolver.php
+
+		-
+			message: '#^Method App\\Services\\ConditionResolver\:\:buildValueMap\(\) has parameter \$fieldIds with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/ConditionResolver.php
+
+		-
+			message: '#^Method App\\Services\\ConditionResolver\:\:buildValueMap\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/ConditionResolver.php
+
+		-
+			message: '#^Parameter \#1 \$condition of method App\\Services\\ConditionEvaluator\:\:evaluate\(\) expects App\\Models\\Condition, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/ConditionResolver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fields\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_encrypted\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$step_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Call to function is_string\(\) with array will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleInitialize\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleMessage\(\) has parameter \$input with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleMessage\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleToolsCall\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleToolsCall\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:handleToolsList\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolCreateForm\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolCreateForm\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolGetFormSchema\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolGetFormSchema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolListForms\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolListForms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolListSubmissions\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolListSubmissions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolSubmitForm\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\McpServerService\:\:toolSubmitForm\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 2
+			path: app/Services/McpServerService.php
+
+		-
+			message: '#^Method App\\Services\\Telemetry\\TelemetryService\:\:buildPayload\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Telemetry/TelemetryService.php
+
+		-
+			message: '#^Method App\\Services\\Telemetry\\TelemetryService\:\:getEnabledIntegrations\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Telemetry/TelemetryService.php
+
+		-
+			message: '#^Method App\\Services\\ZonelessService\:\:handleWebhook\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/ZonelessService.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:expect\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Architecture/LayerBoundariesTest.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: tests/Feature/McpServerTest.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: tests/Feature/McpServerTest.php
+
+		-
+			message: '#^Function createField\(\) has parameter \$attrs with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Models/ConditionEvaluationTest.php
+
+		-
+			message: '#^Function setupForm\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Models/ConditionEvaluationTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/Models/ConditionTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<mixed\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 2
+			path: tests/Feature/Models/ConditionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$operator\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|null\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 2
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<mixed\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 4
+			path: tests/Feature/Models/FieldTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FormTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FormTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/FormTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|null\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 3
+			path: tests/Feature/Models/FormTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/StepTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/StepTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|null\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: tests/Feature/Models/StepTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<mixed\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: tests/Feature/Models/StepTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$entity_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/SubmissionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/SubmissionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Models/SubmissionTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|null\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 2
+			path: tests/Feature/Models/SubmissionTest.php
+
+		-
+			message: '#^Unable to resolve the template type TAndValue in call to method Pest\\Expectation\<mixed\>\:\:and\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: tests/Feature/Models/SubmissionTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\TestCase\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 18
+			path: tests/Feature/PublicEndpointTest.php
+
+		-
+			message: '#^Function makeField\(\) has parameter \$attrs with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Services/ConditionResolverTest.php
+
+		-
+			message: '#^Function makeSetup\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Services/ConditionResolverTest.php
+
+		-
+			message: '#^Function something\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: tests/Pest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Unit/ExampleTest.php
