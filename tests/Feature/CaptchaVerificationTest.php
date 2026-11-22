@@ -107,7 +107,7 @@ test('endpoint accepts submission when Turnstile verification succeeds and strip
 
 test('endpoint accepts submission when hCaptcha verification succeeds and strips token from data', function () {
     Http::fake([
-        'https://hcaptcha.com/siteverify' => Http::response(['success' => true], 200),
+        'https://api.hcaptcha.com/siteverify' => Http::response(['success' => true], 200),
     ]);
 
     $form = Form::create([
@@ -188,4 +188,22 @@ test('captcha secret is encrypted at rest and never exposed in API schema or MCP
 
     // Model toArray() excludes captcha_secret
     expect($form->toArray())->not->toHaveKey('captcha_secret');
+});
+
+test('captcha provider without a secret fails closed instead of skipping verification', function () {
+    Http::fake();
+
+    Form::create([
+        'name' => 'Misconfigured',
+        'slug' => 'misconfigured-captcha',
+        'type' => 'endpoint',
+        'is_active' => true,
+        'captcha_provider' => 'turnstile',
+    ]);
+
+    $this->postJson('/api/v1/f/misconfigured-captcha', ['name' => 'Bot', 'cf-turnstile-response' => 'tok'])
+        ->assertStatus(422);
+
+    expect(Submission::count())->toBe(0);
+    Http::assertNothingSent();
 });

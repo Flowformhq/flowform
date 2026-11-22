@@ -179,18 +179,18 @@ class Form extends Model
 
     public function hasCaptcha(): bool
     {
-        return ! empty($this->captcha_provider) && ! empty($this->captcha_secret);
+        return ! empty($this->captcha_provider);
     }
 
     public function verifyCaptcha(?string $token, ?string $remoteIp = null): bool
     {
-        if (empty($token) || ! $this->hasCaptcha()) {
+        if (empty($token) || ! $this->hasCaptcha() || empty($this->captcha_secret)) {
             return false;
         }
 
         $endpoint = match ($this->captcha_provider) {
             'turnstile' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-            'hcaptcha' => 'https://hcaptcha.com/siteverify',
+            'hcaptcha' => 'https://api.hcaptcha.com/siteverify',
             default => null,
         };
 

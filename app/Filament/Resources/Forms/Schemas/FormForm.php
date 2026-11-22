@@ -98,6 +98,7 @@ class FormForm
                     ->password()
                     ->revealable()
                     ->placeholder('e.g. 0x4AAAAAA...')
+                    ->required(fn ($get) => ! empty($get('captcha_provider')))
                     ->helperText('Encrypted at rest. Never exposed to clients or APIs.')
                     ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
                 TextInput::make('webhook_url')
