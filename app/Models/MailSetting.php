@@ -93,44 +93,33 @@ class MailSetting extends Model
         $mailerConfig = match ($this->driver) {
             'smtp' => [
                 'transport' => 'smtp',
-                'url' => env('MAIL_URL'),
                 'host' => $this->host,
                 'port' => $this->port ?: 587,
                 'encryption' => $this->encryption ?: 'tls',
                 'username' => $this->username,
                 'password' => $this->password,
                 'timeout' => null,
-                'local_domain' => env('MAIL_EHLO_DOMAIN'),
+                'local_domain' => config('mail.mailers.smtp.local_domain'),
             ],
             'ses' => [
                 'transport' => 'ses',
+                'key' => $this->username,
+                'secret' => $this->password,
+                'region' => $this->region ?: 'us-east-1',
             ],
             'resend' => [
                 'transport' => 'resend',
+                'key' => $this->api_key,
             ],
             'postmark' => [
                 'transport' => 'postmark',
-            ],
-            'log' => [
-                'transport' => 'log',
-                'channel' => env('MAIL_LOG_CHANNEL'),
+                'token' => $this->api_key,
             ],
             default => [
-                'transport' => $this->driver,
+                'transport' => 'log',
+                'channel' => config('mail.mailers.log.channel'),
             ],
         };
-
-        if ($this->driver === 'ses') {
-            config([
-                'services.ses.key' => $this->username,
-                'services.ses.secret' => $this->password,
-                'services.ses.region' => $this->region ?: 'us-east-1',
-            ]);
-        } elseif ($this->driver === 'resend') {
-            config(['resend.api_key' => $this->api_key]);
-        } elseif ($this->driver === 'postmark') {
-            config(['services.postmark.token' => $this->api_key]);
-        }
 
         config(["mail.mailers.{$mailerName}" => $mailerConfig]);
 

@@ -16,7 +16,7 @@ class McpController extends Controller
      */
     public function handle(Request $request, McpServerService $mcpService): JsonResponse
     {
-        $response = $mcpService->handleMessage($request->all());
+        $response = $mcpService->handleMessage($request->all(), $request->user());
 
         if ($response === null) {
             return response()->json(['jsonrpc' => '2.0', 'result' => null]);

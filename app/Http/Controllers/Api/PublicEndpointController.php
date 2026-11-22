@@ -53,11 +53,13 @@ class PublicEndpointController extends Controller
 
         // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
         $hasEmail = ! empty($form->notification_email);
-        if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Submission quota or credits exhausted for this form endpoint. Top up pay-as-you-go credits for as low as $1 at https://flowformhq.com.',
-            ], 429)->header('Access-Control-Allow-Origin', '*');
+        if (config('flowform.metering.enabled', false)) {
+            if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Submission quota or credits exhausted for this form endpoint. Top up pay-as-you-go credits for as low as $1 at https://flowformhq.com.',
+                ], 429)->header('Access-Control-Allow-Origin', '*');
+            }
         }
 
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
@@ -100,7 +102,9 @@ class PublicEndpointController extends Controller
         }
 
         // 8. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
-        $form->user?->deductCredits($hasEmail);
+        if (config('flowform.metering.enabled', false)) {
+            $form->user?->deductCredits($hasEmail);
+        }
 
         return $this->respondSuccess($request, $form, $submission);
     }
@@ -189,7 +193,7 @@ class PublicEndpointController extends Controller
                 return true;
             }
 
-            // Wildcard matching e.g. *.buildeon.solutions
+            // Wildcard matching e.g. *.example.com
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
                 if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {

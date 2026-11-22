@@ -176,3 +176,27 @@ test('queued SubmissionReceived falls back to .env mailer when no active MailSet
 
     expect($capturedMailerName)->toBeNull();
 });
+
+test('dynamic mailer keeps provider credentials on the mailer, not global services config', function (string $driver, array $attributes, array $expected) {
+    config(['services.ses.key' => 'env-ses-key', 'services.postmark.token' => 'env-pm', 'services.resend.key' => 'env-resend']);
+
+    (new MailSetting(['driver' => $driver, 'is_active' => true] + $attributes))->applyDynamicMailer('flowform');
+
+    foreach ($expected as $key => $value) {
+        expect(config("mail.mailers.flowform.{$key}"))->toBe($value);
+    }
+    expect(config('services.ses.key'))->toBe('env-ses-key');
+    expect(config('services.postmark.token'))->toBe('env-pm');
+    expect(config('services.resend.key'))->toBe('env-resend');
+})->with([
+    'ses' => ['ses', ['username' => 'AKIA1', 'password' => 'sec', 'region' => 'eu-west-1'], ['transport' => 'ses', 'key' => 'AKIA1', 'secret' => 'sec', 'region' => 'eu-west-1']],
+    'resend' => ['resend', ['api_key' => 're_1'], ['transport' => 'resend', 'key' => 're_1']],
+    'postmark' => ['postmark', ['api_key' => 'pm_1'], ['transport' => 'postmark', 'token' => 'pm_1']],
+]);
+
+test('dynamic smtp mailer never inherits MAIL_URL', function () {
+    (new MailSetting(['driver' => 'smtp', 'host' => 'smtp.db-host.test', 'port' => 2525, 'is_active' => true]))->applyDynamicMailer('flowform');
+
+    expect(config('mail.mailers.flowform'))->not->toHaveKey('url');
+    expect(config('mail.mailers.flowform.host'))->toBe('smtp.db-host.test');
+});
