@@ -75,6 +75,7 @@ class User extends Authenticatable implements FilamentUser
             if ($this->subscription_expires_at && $this->subscription_expires_at->isPast()) {
                 return false;
             }
+
             return true;
         }
 
@@ -102,6 +103,7 @@ class User extends Authenticatable implements FilamentUser
         // Pay-As-You-Go Credits Check:
         // 5 credits for Amazon SES email forwarding, 1 credit for webhook / database only
         $cost = $hasEmail ? 5 : 1;
+
         return ($this->credits_balance ?? 0) >= $cost;
     }
 

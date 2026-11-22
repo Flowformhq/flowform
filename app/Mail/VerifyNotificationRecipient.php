@@ -23,7 +23,7 @@ class VerifyNotificationRecipient extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        $formName = $this->recipient->form?->name ?? 'FlowForm';
+        $formName = $this->recipient->form->name;
 
         return new Envelope(
             subject: "Confirm Notification Email for {$formName}",

@@ -9,6 +9,7 @@ use App\Services\ConditionResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
 class Submission extends Model
@@ -40,7 +41,8 @@ class Submission extends Model
 
         if ($this->is_encrypted) {
             try {
-                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($value);
+                $decrypted = Crypt::decryptString($value);
+
                 return json_decode($decrypted, true) ?: [];
             } catch (\Throwable $e) {
                 return ['_encrypted' => true, '_notice' => 'Encrypted PII at rest (AES-256)'];
@@ -64,7 +66,7 @@ class Submission extends Model
         if ($shouldEncrypt) {
             $this->attributes['is_encrypted'] = true;
             $json = is_string($value) ? $value : json_encode($value);
-            $this->attributes['data'] = \Illuminate\Support\Facades\Crypt::encryptString($json);
+            $this->attributes['data'] = Crypt::encryptString($json);
         } else {
             $this->attributes['data'] = is_array($value) ? json_encode($value) : $value;
         }

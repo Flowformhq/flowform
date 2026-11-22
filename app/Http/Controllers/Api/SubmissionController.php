@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\FieldStateResource;
 use App\Http\Resources\Api\SubmissionDetailResource;
 use App\Http\Resources\Api\SubmissionResource;
+use App\Models\AuditLog;
 use App\Models\Field;
 use App\Models\Form;
 use App\Models\Submission;
@@ -74,7 +75,7 @@ class SubmissionController extends Controller
         $submission->load(['form', 'values.field']);
 
         if ($submission->is_encrypted) {
-            \App\Models\AuditLog::record(
+            AuditLog::record(
                 action: 'submission.decrypted',
                 auditable: $submission,
                 details: ['form_uuid' => $submission->form?->uuid, 'status' => $submission->status],

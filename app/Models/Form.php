@@ -62,6 +62,9 @@ class Form extends Model
         });
     }
 
+    /**
+     * @return HasMany<NotificationRecipient, $this>
+     */
     public function recipients(): HasMany
     {
         return $this->hasMany(NotificationRecipient::class);
@@ -85,33 +88,34 @@ class Form extends Model
         foreach ($emails as $email) {
             $recipient = $this->recipients()->firstOrNew(['email' => $email]);
 
+            if ($recipient->isVerified()) {
+                continue;
+            }
+
             if ($ownerEmail && $email === $ownerEmail) {
-                if (! $recipient->isVerified()) {
-                    $recipient->verified_at = now();
-                    $recipient->verification_token = null;
-                    $recipient->save();
-                }
+                $recipient->verified_at = now();
+                $recipient->save();
 
                 continue;
             }
 
-            if (! $recipient->isVerified()) {
-                if (empty($recipient->verification_token)) {
-                    $recipient->verification_token = Str::random(40);
-                }
-                $recipient->save();
+            if ($recipient->exists) {
+                continue;
+            }
 
-                try {
-                    Mail::to($email)->send(new VerifyNotificationRecipient($recipient));
-                } catch (\Throwable $e) {
-                    report($e);
-                }
-            } else {
-                $recipient->save();
+            $recipient->save();
+
+            try {
+                Mail::to($email)->send(new VerifyNotificationRecipient($recipient));
+            } catch (\Throwable $e) {
+                report($e);
             }
         }
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

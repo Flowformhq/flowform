@@ -14,7 +14,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('form_id')->constrained()->cascadeOnDelete();
             $table->string('email');
-            $table->string('verification_token')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->timestamps();
 

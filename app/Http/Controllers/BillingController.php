@@ -32,6 +32,7 @@ class BillingController extends Controller
             }
 
             $credits = ZonelessService::getCreditsForPack($packUsd);
+
             return redirect('/admin')->with('status', "Topped up {$credits} credits (Test Mode Active).");
         }
 

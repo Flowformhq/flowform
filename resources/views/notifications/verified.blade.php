@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification Email Verified — FlowForm</title>
+    <title>{{ $confirmed ? 'Notification Email Verified' : 'Confirm Notification Email' }} — FlowForm</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -43,6 +43,15 @@
             line-height: 1.5;
             margin-bottom: 1.5rem;
         }
+        .button {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: 0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
         .badge {
             display: inline-block;
             background-color: #0f172a;
@@ -58,10 +67,19 @@
 </head>
 <body>
     <div class="card">
-        <div class="icon">✅</div>
-        <h1>Notification Email Verified</h1>
-        <p>Your email address has been verified. You will now receive form submissions for <strong>{{ $form->name ?? 'your form' }}</strong>.</p>
-        <div class="badge">{{ $recipient->email }}</div>
+        @if ($confirmed)
+            <h1>Notification Email Verified</h1>
+            <p>Your email address has been verified. You will now receive form submissions for <strong>{{ $form->name ?? 'your form' }}</strong>.</p>
+            <div class="badge">{{ $recipient->email }}</div>
+        @else
+            <h1>Confirm Notification Email</h1>
+            <p>Receive form submissions for <strong>{{ $form->name ?? 'this form' }}</strong> at this address?</p>
+            <div class="badge">{{ $recipient->email }}</div>
+            <form method="POST" action="{{ $confirmUrl }}">
+                @csrf
+                <button type="submit" class="button">Yes, send me submissions</button>
+            </form>
+        @endif
     </div>
 </body>
 </html>

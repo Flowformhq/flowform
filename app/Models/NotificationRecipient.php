@@ -12,7 +12,6 @@ class NotificationRecipient extends Model
     protected $fillable = [
         'form_id',
         'email',
-        'verification_token',
         'verified_at',
     ];
 
@@ -20,6 +19,9 @@ class NotificationRecipient extends Model
         'verified_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<Form, $this>
+     */
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);
@@ -34,7 +36,6 @@ class NotificationRecipient extends Model
     {
         return $this->update([
             'verified_at' => now(),
-            'verification_token' => null,
         ]);
     }
 }

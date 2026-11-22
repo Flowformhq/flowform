@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Forms\Pages\EditForm;
 use App\Mail\SubmissionReceived;
 use App\Mail\VerifyNotificationRecipient;
 use App\Models\Form;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Livewire\Livewire;
 
 beforeEach(function () {
     Cache::flush();
@@ -76,12 +78,35 @@ test('clicking valid signed verification link marks the recipient verified and s
         ['recipient' => $recipient->id]
     );
 
-    $response = $this->get($signedUrl);
-    $response->assertOk()
+    $this->get($signedUrl)
+        ->assertOk()
         ->assertViewIs('notifications.verified')
-        ->assertSee('pending@example.com');
+        ->assertSee('pending@example.com')
+        ->assertSee('Yes, send me submissions');
+
+    expect($recipient->fresh()->isVerified())->toBeFalse();
+
+    $this->post($signedUrl)->assertOk()->assertSee('Notification Email Verified');
 
     expect($recipient->fresh()->isVerified())->toBeTrue();
+});
+
+test('re-saving a form does not resend verification emails to pending recipients', function () {
+    $form = Form::create([
+        'name' => 'Resave Form',
+        'slug' => 'resave-form',
+        'type' => 'endpoint',
+        'notification_email' => 'victim@example.com',
+        'is_active' => true,
+    ]);
+
+    $form->update(['is_active' => false]);
+    $form->update(['is_active' => true]);
+    $form->update(['notification_email' => 'victim@example.com, new@example.com']);
+
+    Mail::assertQueued(VerifyNotificationRecipient::class, 2);
+    Mail::assertQueued(VerifyNotificationRecipient::class, fn ($mail) => $mail->hasTo('victim@example.com'));
+    Mail::assertQueued(VerifyNotificationRecipient::class, fn ($mail) => $mail->hasTo('new@example.com'));
 });
 
 test('subsequent submissions email the verified recipient', function () {
@@ -162,4 +187,26 @@ test('tampered or expired signed verification URLs return 403', function () {
     $tamperedUrl = $validUrl.'&extra=tamper';
 
     $this->get($tamperedUrl)->assertForbidden();
+    $this->post($tamperedUrl)->assertForbidden();
+    $this->post(route('notifications.verify.confirm', ['recipient' => $recipient->id]))->assertForbidden();
+
+    expect($recipient->fresh()->isVerified())->toBeFalse();
+});
+
+test('form edit page renders recipient verification statuses', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $form = Form::create([
+        'user_id' => $admin->id,
+        'name' => 'Edit Page Form',
+        'slug' => 'edit-page-form',
+        'type' => 'endpoint',
+        'notification_email' => 'pending@example.com',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->assertOk()
+        ->assertSee('pending@example.com');
 });

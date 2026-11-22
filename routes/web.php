@@ -11,8 +11,12 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
-Route::get('notifications/verify/{recipient}', [NotificationVerificationController::class, 'verify'])
+Route::get('notifications/verify/{recipient}', [NotificationVerificationController::class, 'show'])
     ->name('notifications.verify')
+    ->middleware('signed');
+
+Route::post('notifications/verify/{recipient}', [NotificationVerificationController::class, 'verify'])
+    ->name('notifications.verify.confirm')
     ->middleware('signed');
 
 Route::get('admin/mail-settings-page', function () {
