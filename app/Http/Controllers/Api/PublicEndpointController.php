@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DispatchFormWebhook;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
+use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -79,10 +81,18 @@ class PublicEndpointController extends Controller
 
         // 6. Dispatch Notification Email (Amazon SES Relay / Custom In-App SMTP)
         if ($hasEmail) {
-            $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
+            if ($form->recipients()->count() === 0) {
+                $form->syncNotificationRecipients();
+            }
+
+            $recipients = $form->recipients()
+                ->whereNotNull('verified_at')
+                ->pluck('email')
+                ->all();
+
             if (! empty($recipients)) {
                 try {
-                    \App\Models\MailSetting::applyActiveConfig();
+                    MailSetting::applyActiveConfig();
                     Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
                 } catch (\Throwable $e) {
                     report($e);
@@ -93,7 +103,7 @@ class PublicEndpointController extends Controller
         // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
         if (! empty($form->webhook_url)) {
             try {
-                \App\Jobs\DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $data);
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -192,7 +202,7 @@ class PublicEndpointController extends Controller
             // Wildcard matching e.g. *.buildeon.solutions
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
                     return true;
                 }
             }

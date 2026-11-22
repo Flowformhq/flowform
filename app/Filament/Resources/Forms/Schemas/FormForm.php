@@ -9,6 +9,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class FormForm
 {
@@ -38,6 +39,7 @@ class FormForm
                             return 'Save form to generate unique endpoint URL';
                         }
                         $id = $record->access_key ?: $record->slug;
+
                         return url("/f/{$id}");
                     })
                     ->readOnly()
@@ -48,7 +50,23 @@ class FormForm
                 TextInput::make('notification_email')
                     ->label('Notification Email(s)')
                     ->placeholder('e.g. you@company.com')
-                    ->helperText('Comma-separated email addresses where form submissions will be forwarded.')
+                    ->helperText(function (?Form $record): HtmlString|string {
+                        if (! $record || $record->recipients->isEmpty()) {
+                            return 'Comma-separated email addresses where form submissions will be forwarded. Recipients must verify their address before receiving notifications.';
+                        }
+
+                        $statuses = $record->recipients->map(function ($r) {
+                            $badge = $r->isVerified()
+                                ? '<span class="text-emerald-500 font-medium">✓ verified</span>'
+                                : '<span class="text-amber-500 font-medium">⏳ pending confirmation</span>';
+
+                            return e($r->email).' ('.$badge.')';
+                        })->implode(' · ');
+
+                        return new HtmlString(
+                            'Recipient statuses: '.$statuses.'<br>Unverified addresses will receive a confirmation link.'
+                        );
+                    })
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
                 TextInput::make('redirect_url')
                     ->label('Custom Redirect URL')

@@ -3,12 +3,17 @@
 use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\NotificationVerificationController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect('/admin');
 });
+
+Route::get('notifications/verify/{recipient}', [NotificationVerificationController::class, 'verify'])
+    ->name('notifications.verify')
+    ->middleware('signed');
 
 Route::get('admin/mail-settings-page', function () {
     return redirect('/admin/mail-settings');

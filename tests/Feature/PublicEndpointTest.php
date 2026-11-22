@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Jobs\DispatchFormWebhook;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Cache::flush();
@@ -155,6 +158,7 @@ test('honeypot submission via _gotcha is quietly discarded without saving or ema
         'notification_email' => 'alerts@buildeon.solutions',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-contact', [
         'name' => 'Spam Bot',
@@ -181,6 +185,7 @@ test('honeypot submission via _honeypot is quietly discarded', function () {
         'notification_email' => 'alerts@buildeon.solutions',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-form', [
         'name' => 'Spam Bot 2',
@@ -201,6 +206,8 @@ test('successful submission dispatches SubmissionReceived email to configured no
         'notification_email' => 'sales@buildeon.solutions',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/leads', [
         'full_name' => 'Jane Smith',
@@ -224,6 +231,8 @@ test('supports comma-separated multiple notification emails', function () {
         'notification_email' => 'w@buildeon.solutions, sales@buildeon.solutions',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $this->postJson('/api/v1/f/partners', ['company' => 'Partner Co'])->assertOk();
 
@@ -426,7 +435,7 @@ test('POST /f/{slug} encrypts submission data when form has is_encrypted=true', 
     expect($submission->data['ssn'])->toEqual('123-45-6789');
 
     // Raw database column is encrypted ciphertext (does not contain plaintext)
-    $rawDbData = \Illuminate\Support\Facades\DB::table('submissions')
+    $rawDbData = DB::table('submissions')
         ->where('id', $submission->id)
         ->value('data');
     expect($rawDbData)->not->toContain('Jane Doe');
@@ -434,7 +443,7 @@ test('POST /f/{slug} encrypts submission data when form has is_encrypted=true', 
 });
 
 test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', function () {
-    \Illuminate\Support\Facades\Queue::fake();
+    Queue::fake();
 
     $form = Form::create([
         'name' => 'Webhook Form',
@@ -451,8 +460,7 @@ test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', functi
 
     $response->assertOk();
 
-    \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\DispatchFormWebhook::class, function ($job) use ($form) {
+    Queue::assertPushed(DispatchFormWebhook::class, function ($job) use ($form) {
         return $job->form->id === $form->id && $job->payload['lead_name'] === 'John Agency';
     });
 });
-
