@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\Form;
+use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -24,7 +26,18 @@ class SubmissionReceived extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
+        $activeSetting = MailSetting::getActive();
+        $from = null;
+
+        if ($activeSetting && ! empty($activeSetting->from_address)) {
+            $from = new Address(
+                $activeSetting->from_address,
+                $activeSetting->from_name ?: config('mail.from.name', 'FlowForm Engine')
+            );
+        }
+
         return new Envelope(
+            from: $from,
             subject: "New Submission: {$this->form->name}",
         );
     }
@@ -39,5 +52,19 @@ class SubmissionReceived extends Mailable implements ShouldQueue
                 'data' => $this->submission->data ?? [],
             ],
         );
+    }
+
+    public function send($mailer)
+    {
+        $activeSetting = MailSetting::getActive();
+
+        if ($activeSetting) {
+            $activeSetting->applyDynamicMailer('flowform');
+            $this->mailer('flowform');
+        } else {
+            $this->mailer(null);
+        }
+
+        return parent::send($mailer);
     }
 }

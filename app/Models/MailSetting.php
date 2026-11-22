@@ -46,6 +46,7 @@ class MailSetting extends Model
     {
         if (empty($value)) {
             $this->attributes['password'] = null;
+
             return;
         }
 
@@ -69,6 +70,7 @@ class MailSetting extends Model
     {
         if (empty($value)) {
             $this->attributes['api_key'] = null;
+
             return;
         }
 
@@ -81,6 +83,60 @@ class MailSetting extends Model
     public static function getActive(): ?self
     {
         return static::where('is_active', true)->latest()->first();
+    }
+
+    /**
+     * Apply active setting as a dynamic mailer.
+     */
+    public function applyDynamicMailer(string $mailerName = 'flowform'): void
+    {
+        $mailerConfig = match ($this->driver) {
+            'smtp' => [
+                'transport' => 'smtp',
+                'url' => env('MAIL_URL'),
+                'host' => $this->host,
+                'port' => $this->port ?: 587,
+                'encryption' => $this->encryption ?: 'tls',
+                'username' => $this->username,
+                'password' => $this->password,
+                'timeout' => null,
+                'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            ],
+            'ses' => [
+                'transport' => 'ses',
+            ],
+            'resend' => [
+                'transport' => 'resend',
+            ],
+            'postmark' => [
+                'transport' => 'postmark',
+            ],
+            'log' => [
+                'transport' => 'log',
+                'channel' => env('MAIL_LOG_CHANNEL'),
+            ],
+            default => [
+                'transport' => $this->driver,
+            ],
+        };
+
+        if ($this->driver === 'ses') {
+            config([
+                'services.ses.key' => $this->username,
+                'services.ses.secret' => $this->password,
+                'services.ses.region' => $this->region ?: 'us-east-1',
+            ]);
+        } elseif ($this->driver === 'resend') {
+            config(['resend.api_key' => $this->api_key]);
+        } elseif ($this->driver === 'postmark') {
+            config(['services.postmark.token' => $this->api_key]);
+        }
+
+        config(["mail.mailers.{$mailerName}" => $mailerConfig]);
+
+        if (app()->bound('mail.manager')) {
+            app('mail.manager')->purge($mailerName);
+        }
     }
 
     /**
@@ -161,7 +217,7 @@ class MailSetting extends Model
 
         try {
             Mail::raw(
-                "Hello,\n\nThis is a diagnostic test email from FlowForm to verify your '{$this->driver}' mail transport configuration.\n\nTime: " . now()->toRfc2822String() . "\n\nFlowForm Team",
+                "Hello,\n\nThis is a diagnostic test email from FlowForm to verify your '{$this->driver}' mail transport configuration.\n\nTime: ".now()->toRfc2822String()."\n\nFlowForm Team",
                 function ($message) use ($recipient) {
                     $message->to($recipient)
                         ->subject("FlowForm SMTP Diagnostic Test - {$this->driver}");
