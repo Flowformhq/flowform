@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Jobs\DispatchFormWebhook;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
-use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -86,7 +85,6 @@ class PublicEndpointController extends Controller
             $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
             if (! empty($recipients)) {
                 try {
-                    MailSetting::applyActiveConfig();
                     Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
                 } catch (\Throwable $e) {
                     report($e);

@@ -46,6 +46,7 @@ class MailSetting extends Model
     {
         if (empty($value)) {
             $this->attributes['password'] = null;
+
             return;
         }
 
@@ -69,6 +70,7 @@ class MailSetting extends Model
     {
         if (empty($value)) {
             $this->attributes['api_key'] = null;
+
             return;
         }
 
@@ -81,6 +83,49 @@ class MailSetting extends Model
     public static function getActive(): ?self
     {
         return static::where('is_active', true)->latest()->first();
+    }
+
+    /**
+     * Apply active setting as a dynamic mailer.
+     */
+    public function applyDynamicMailer(string $mailerName = 'flowform'): void
+    {
+        $mailerConfig = match ($this->driver) {
+            'smtp' => [
+                'transport' => 'smtp',
+                'host' => $this->host,
+                'port' => $this->port ?: 587,
+                'encryption' => $this->encryption ?: 'tls',
+                'username' => $this->username,
+                'password' => $this->password,
+                'timeout' => null,
+                'local_domain' => config('mail.mailers.smtp.local_domain'),
+            ],
+            'ses' => [
+                'transport' => 'ses',
+                'key' => $this->username,
+                'secret' => $this->password,
+                'region' => $this->region ?: 'us-east-1',
+            ],
+            'resend' => [
+                'transport' => 'resend',
+                'key' => $this->api_key,
+            ],
+            'postmark' => [
+                'transport' => 'postmark',
+                'token' => $this->api_key,
+            ],
+            default => [
+                'transport' => 'log',
+                'channel' => config('mail.mailers.log.channel'),
+            ],
+        };
+
+        config(["mail.mailers.{$mailerName}" => $mailerConfig]);
+
+        if (app()->bound('mail.manager')) {
+            app('mail.manager')->purge($mailerName);
+        }
     }
 
     /**
@@ -161,7 +206,7 @@ class MailSetting extends Model
 
         try {
             Mail::raw(
-                "Hello,\n\nThis is a diagnostic test email from FlowForm to verify your '{$this->driver}' mail transport configuration.\n\nTime: " . now()->toRfc2822String() . "\n\nFlowForm Team",
+                "Hello,\n\nThis is a diagnostic test email from FlowForm to verify your '{$this->driver}' mail transport configuration.\n\nTime: ".now()->toRfc2822String()."\n\nFlowForm Team",
                 function ($message) use ($recipient) {
                     $message->to($recipient)
                         ->subject("FlowForm SMTP Diagnostic Test - {$this->driver}");
