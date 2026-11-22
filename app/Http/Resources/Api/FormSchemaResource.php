@@ -7,6 +7,10 @@ namespace App\Http\Resources\Api;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property-read string|null $captcha_provider
+ * @property-read string|null $captcha_site_key
+ */
 class FormSchemaResource extends JsonResource
 {
     /**
@@ -21,6 +25,10 @@ class FormSchemaResource extends JsonResource
             'description' => $this->description,
             'is_active' => $this->is_active,
             'version' => $this->version,
+            'captcha' => $this->captcha_provider ? [
+                'provider' => $this->captcha_provider,
+                'site_key' => $this->captcha_site_key,
+            ] : null,
             'created_at' => $this->created_at,
             'steps' => StepResource::collection($this->whenLoaded('steps')),
             'entities' => EntityResource::collection($this->whenLoaded('entities')),

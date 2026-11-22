@@ -2,7 +2,7 @@
     $user = auth()->user();
 @endphp
 
-@if ($user)
+@if (config('flowform.metering.enabled', false) && $user)
     <div class="flex items-center gap-2 pl-2">
         @if ($user->isPro())
             <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">

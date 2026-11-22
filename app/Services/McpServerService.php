@@ -8,9 +8,12 @@ use App\Jobs\DispatchFormWebhook;
 use App\Models\Form;
 use App\Models\Step;
 use App\Models\Submission;
+use App\Models\User;
 use App\Rules\ValidWebhookUrl;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\TransientToken;
 
 class McpServerService
 {
@@ -21,9 +24,31 @@ class McpServerService
     public const SERVER_VERSION = '1.0.0';
 
     /**
+     * @var array<string, string>
+     */
+    protected const TOOL_ABILITIES = [
+        'list_forms' => 'forms:read',
+        'get_form_schema' => 'forms:read',
+        'create_form' => 'forms:write',
+        'submit_form' => 'submissions:write',
+        'list_submissions' => 'submissions:read',
+    ];
+
+    /**
+     * Handle a message from a trusted local session (stdio), granting every token ability.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function handleLocalMessage(string $input, User $user): ?array
+    {
+        // @phpstan-ignore argument.type (TransientToken is Sanctum's first-party token for trusted non-token sessions)
+        return $this->handleMessage($input, $user->withAccessToken(new TransientToken));
+    }
+
+    /**
      * Handle an incoming MCP JSON-RPC message (as array or JSON string) and return the response array.
      */
-    public function handleMessage(string|array $input): ?array
+    public function handleMessage(string|array $input, User $user): ?array
     {
         $payload = is_string($input) ? json_decode($input, true) : $input;
         if (! is_array($payload) || ! isset($payload['jsonrpc'])) {
@@ -47,7 +72,7 @@ class McpServerService
             'initialize' => $this->handleInitialize($id),
             'ping' => ['jsonrpc' => '2.0', 'id' => $id, 'result' => new \stdClass],
             'tools/list' => $this->handleToolsList($id),
-            'tools/call' => $this->handleToolsCall($id, $params),
+            'tools/call' => $this->handleToolsCall($id, $params, $user),
             default => [
                 'jsonrpc' => '2.0',
                 'id' => $id,
@@ -160,18 +185,23 @@ class McpServerService
         ];
     }
 
-    protected function handleToolsCall(mixed $id, array $params): array
+    protected function handleToolsCall(mixed $id, array $params, User $user): array
     {
         $name = $params['name'] ?? '';
         $args = $params['arguments'] ?? [];
 
         try {
+            $ability = self::TOOL_ABILITIES[$name] ?? null;
+            if ($ability !== null && ! $user->tokenCan($ability)) {
+                throw new \InvalidArgumentException("Token is missing the '{$ability}' ability.");
+            }
+
             $result = match ($name) {
-                'list_forms' => $this->toolListForms($args),
-                'get_form_schema' => $this->toolGetFormSchema($args),
-                'create_form' => $this->toolCreateForm($args),
-                'submit_form' => $this->toolSubmitForm($args),
-                'list_submissions' => $this->toolListSubmissions($args),
+                'list_forms' => $this->toolListForms($args, $user),
+                'get_form_schema' => $this->toolGetFormSchema($args, $user),
+                'create_form' => $this->toolCreateForm($args, $user),
+                'submit_form' => $this->toolSubmitForm($args, $user),
+                'list_submissions' => $this->toolListSubmissions($args, $user),
                 default => throw new \InvalidArgumentException("Unknown tool: {$name}"),
             };
 
@@ -204,11 +234,12 @@ class McpServerService
         }
     }
 
-    protected function toolListForms(array $args): array
+    protected function toolListForms(array $args, User $user): array
     {
         $limit = min((int) ($args['limit'] ?? 20), 50);
 
-        return Form::active()
+        return $this->formsVisibleTo($user)
+            ->active()
             ->latest()
             ->limit($limit)
             ->get(['uuid', 'name', 'slug', 'type', 'is_encrypted', 'webhook_url', 'created_at'])
@@ -225,11 +256,10 @@ class McpServerService
             ->toArray();
     }
 
-    protected function toolGetFormSchema(array $args): array
+    protected function toolGetFormSchema(array $args, User $user): array
     {
         $identifier = $args['identifier'] ?? '';
-        $form = Form::where('uuid', $identifier)
-            ->orWhere('slug', $identifier)
+        $form = $this->findVisibleForm($user, $identifier)
             ->with(['steps.fields.fieldType', 'steps.fields.options', 'steps.fields.conditions'])
             ->firstOrFail();
 
@@ -240,6 +270,10 @@ class McpServerService
             'type' => $form->type,
             'endpoint' => url("/f/{$form->slug}"),
             'is_encrypted' => (bool) $form->is_encrypted,
+            'captcha' => $form->captcha_provider ? [
+                'provider' => $form->captcha_provider,
+                'site_key' => $form->captcha_site_key,
+            ] : null,
             'steps' => $form->steps->map(fn ($step) => [
                 'step_number' => $step->step_number,
                 'title' => $step->title,
@@ -260,7 +294,7 @@ class McpServerService
         ];
     }
 
-    protected function toolCreateForm(array $args): array
+    protected function toolCreateForm(array $args, User $user): array
     {
         $name = $args['name'] ?? 'Untitled Form';
         $slug = $args['slug'] ?? Str::slug($name);
@@ -280,6 +314,7 @@ class McpServerService
         }
 
         $form = Form::create([
+            'user_id' => $user->id,
             'name' => $name,
             'slug' => $slug,
             'type' => $type,
@@ -313,17 +348,18 @@ class McpServerService
         ];
     }
 
-    protected function toolSubmitForm(array $args): array
+    protected function toolSubmitForm(array $args, User $user): array
     {
         $slug = $args['form_slug'] ?? '';
         $data = $args['data'] ?? [];
 
-        $form = Form::where('slug', $slug)
-            ->orWhere('uuid', $slug)
+        $form = $this->findVisibleForm($user, $slug)
+            ->active()
             ->firstOrFail();
 
         $submission = new Submission;
         $submission->form_id = $form->id;
+        $submission->user_id = $user->id;
         $submission->status = 'completed';
         $submission->is_encrypted = (bool) $form->is_encrypted;
         $submission->data = $data;
@@ -352,14 +388,12 @@ class McpServerService
         ];
     }
 
-    protected function toolListSubmissions(array $args): array
+    protected function toolListSubmissions(array $args, User $user): array
     {
         $slug = $args['form_slug'] ?? '';
         $limit = min((int) ($args['limit'] ?? 10), 30);
 
-        $form = Form::where('slug', $slug)
-            ->orWhere('uuid', $slug)
-            ->firstOrFail();
+        $form = $this->findVisibleForm($user, $slug)->firstOrFail();
 
         return $form->submissions()
             ->latest()
@@ -373,5 +407,22 @@ class McpServerService
                 'created_at' => $s->created_at?->toISOString(),
             ])
             ->toArray();
+    }
+
+    /**
+     * @return Builder<Form>
+     */
+    protected function formsVisibleTo(User $user): Builder
+    {
+        return Form::query()->when(! $user->is_admin, fn (Builder $query) => $query->where('user_id', $user->id));
+    }
+
+    /**
+     * @return Builder<Form>
+     */
+    protected function findVisibleForm(User $user, string $identifier): Builder
+    {
+        return $this->formsVisibleTo($user)
+            ->where(fn (Builder $query) => $query->where('uuid', $identifier)->orWhere('slug', $identifier));
     }
 }

@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Form;
-use App\Models\MailSetting;
 use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +66,12 @@ class ComplianceController extends Controller
             ->with(['steps.fields', 'steps.conditions'])
             ->get();
 
-        $submissions = Submission::where('user_id', $user->id)
+        $userFormIds = $forms->pluck('id');
+
+        $submissions = Submission::where(function ($query) use ($user, $userFormIds) {
+            $query->where('user_id', $user->id)
+                ->orWhereIn('form_id', $userFormIds);
+        })
             ->with('values')
             ->get()
             ->map(function (Submission $submission) {
@@ -80,15 +84,6 @@ class ComplianceController extends Controller
                     'created_at' => $submission->created_at?->toIso8601String(),
                 ];
             });
-
-        $mailSettings = MailSetting::where('user_id', $user->id)
-            ->get()
-            ->map(fn (MailSetting $ms) => [
-                'provider' => $ms->provider,
-                'from_address' => $ms->from_address,
-                'from_name' => $ms->from_name,
-                'is_active' => $ms->is_active,
-            ]);
 
         AuditLog::record(
             action: 'gdpr.export',
@@ -111,7 +106,6 @@ class ComplianceController extends Controller
             ],
             'forms' => $forms,
             'submissions' => $submissions,
-            'mail_settings' => $mailSettings,
         ];
 
         return response()->json($payload, 200, [
@@ -152,6 +146,7 @@ class ComplianceController extends Controller
                         }
                     }
                 }
+
                 return false;
             });
 
@@ -185,15 +180,18 @@ class ComplianceController extends Controller
         if ($request->boolean('purge_all_submissions')) {
             $userFormIds = Form::where('user_id', $user->id)->pluck('id');
 
-            $submissionsQuery = Submission::where('user_id', $user->id)
-                ->orWhereIn('form_id', $userFormIds);
+            $submissionsQuery = Submission::where(function ($query) use ($user, $userFormIds) {
+                $query->where('user_id', $user->id)
+                    ->orWhereIn('form_id', $userFormIds);
+            });
 
             $count = $submissionsQuery->count();
 
             DB::transaction(function () use ($user, $userFormIds) {
-                $subIds = Submission::where('user_id', $user->id)
-                    ->orWhereIn('form_id', $userFormIds)
-                    ->pluck('id');
+                $subIds = Submission::where(function ($query) use ($user, $userFormIds) {
+                    $query->where('user_id', $user->id)
+                        ->orWhereIn('form_id', $userFormIds);
+                })->pluck('id');
 
                 DB::table('submission_values')->whereIn('submission_id', $subIds)->delete();
                 Submission::whereIn('id', $subIds)->delete();
@@ -228,13 +226,13 @@ class ComplianceController extends Controller
 
             DB::transaction(function () use ($user) {
                 $userFormIds = Form::where('user_id', $user->id)->pluck('id');
-                $subIds = Submission::where('user_id', $user->id)
-                    ->orWhereIn('form_id', $userFormIds)
-                    ->pluck('id');
+                $subIds = Submission::where(function ($query) use ($user, $userFormIds) {
+                    $query->where('user_id', $user->id)
+                        ->orWhereIn('form_id', $userFormIds);
+                })->pluck('id');
 
                 DB::table('submission_values')->whereIn('submission_id', $subIds)->delete();
                 Submission::whereIn('id', $subIds)->delete();
-                MailSetting::where('user_id', $user->id)->delete();
                 Form::where('user_id', $user->id)->delete();
                 $user->tokens()->delete();
                 $user->delete();
