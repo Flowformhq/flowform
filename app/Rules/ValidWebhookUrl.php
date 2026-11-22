@@ -47,57 +47,65 @@ class ValidWebhookUrl implements ValidationRule
             return true;
         }
 
-        $parsed = parse_url($url);
-        if (! $parsed || empty($parsed['host'])) {
-            return false;
+        return static::resolveAllowedTarget($url) !== null;
+    }
+
+    /**
+     * Resolve the host once and return the address to pin the connection to, so DNS cannot change between check and connect.
+     *
+     * @return array{host: string, port: int, ip: string}|null
+     */
+    public static function resolveAllowedTarget(string $url): ?array
+    {
+        if (! static::isValidUrl($url)) {
+            return null;
         }
 
-        $rawHost = $parsed['host'];
-        $host = trim($rawHost, '[]');
+        $parsed = (array) parse_url($url);
+        $host = trim((string) $parsed['host'], '[]');
+        $port = (int) ($parsed['port'] ?? (strtolower((string) $parsed['scheme']) === 'https' ? 443 : 80));
 
         if (strtolower($host) === 'localhost') {
-            return false;
+            return null;
         }
 
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            return ! static::isPrivateOrReservedIp($host);
-        }
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : static::resolveHost($host);
 
-        $ips = static::resolveHost($host);
-
-        if (empty($ips)) {
-            return false;
+        if ($ips === []) {
+            return null;
         }
 
         foreach ($ips as $ip) {
             if (static::isPrivateOrReservedIp($ip)) {
-                return false;
+                return null;
             }
         }
 
-        return true;
+        return ['host' => $host, 'port' => $port, 'ip' => $ips[0]];
     }
 
+    /**
+     * @return list<string>
+     */
     public static function resolveHost(string $host): array
     {
         if (static::$dnsResolver !== null) {
-            return (array) call_user_func(static::$dnsResolver, $host);
+            return array_values((array) call_user_func(static::$dnsResolver, $host));
         }
 
-        $ips = gethostbynamel($host);
-        if ($ips === false || empty($ips)) {
-            $records = @dns_get_record($host, DNS_AAAA);
-            if (! empty($records)) {
-                $ips = array_column($records, 'ipv6');
-            }
-        }
+        $ipv4 = gethostbynamel($host) ?: [];
+        $ipv6 = array_column(@dns_get_record($host, DNS_AAAA) ?: [], 'ipv6');
 
-        return $ips ?: [];
+        return array_values(array_unique([...$ipv4, ...$ipv6]));
     }
 
     public static function isPrivateOrReservedIp(string $ip): bool
     {
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return true;
+        }
+
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && str_starts_with((string) inet_ntop((string) inet_pton($ip)), '64:ff9b::')) {
             return true;
         }
 

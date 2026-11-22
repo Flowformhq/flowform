@@ -6,6 +6,7 @@ use App\Jobs\DispatchFormWebhook;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Rules\ValidWebhookUrl;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
@@ -185,4 +186,46 @@ test('ValidWebhookUrl validator rejects internal IPs and accepts public domains'
         ['url' => [new ValidWebhookUrl]]
     );
     expect($validatorPublic->passes())->toBeTrue();
+});
+
+test('resolveAllowedTarget rejects a host whose records mix public and private addresses', function () {
+    ValidWebhookUrl::$dnsResolver = fn ($host) => ['93.184.216.34', 'fd00::1'];
+
+    expect(ValidWebhookUrl::resolveAllowedTarget('https://mixed.example.com/hook'))->toBeNull();
+});
+
+test('resolveAllowedTarget returns the verified address to pin the connection to', function () {
+    ValidWebhookUrl::$dnsResolver = fn ($host) => ['93.184.216.34'];
+
+    expect(ValidWebhookUrl::resolveAllowedTarget('https://hooks.example.com/in'))
+        ->toBe(['host' => 'hooks.example.com', 'port' => 443, 'ip' => '93.184.216.34']);
+    expect(ValidWebhookUrl::resolveAllowedTarget('http://hooks.example.com:8080/in'))
+        ->toBe(['host' => 'hooks.example.com', 'port' => 8080, 'ip' => '93.184.216.34']);
+});
+
+test('NAT64-mapped loopback is treated as private', function () {
+    expect(ValidWebhookUrl::isPrivateOrReservedIp('64:ff9b::7f00:1'))->toBeTrue();
+});
+
+test('v2 signature verifies against the exact request body bytes', function () {
+    ValidWebhookUrl::$dnsResolver = fn ($host) => ['93.184.216.34'];
+    Http::fake(['*' => Http::response(['ok' => true], 200)]);
+
+    $form = Form::create([
+        'name' => 'Raw Body',
+        'slug' => 'raw-body',
+        'type' => 'endpoint',
+        'is_active' => true,
+        'webhook_url' => 'https://hooks.example.com/in',
+        'webhook_secret' => 'whsec_raw',
+    ]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['url' => 'https://a.example/b?c=d&e=é']]);
+
+    (new DispatchFormWebhook($form, $submission, $submission->data))->handle();
+
+    Http::assertSent(function (Request $request) {
+        preg_match('/^t=(\d+),v1=([a-f0-9]{64})$/', $request->header('X-FlowForm-Signature-256')[0], $m);
+
+        return hash_equals(hash_hmac('sha256', $m[1].'.'.$request->body(), 'whsec_raw'), $m[2]);
+    });
 });

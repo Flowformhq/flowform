@@ -42,10 +42,17 @@ class DispatchFormWebhook implements ShouldQueue
             return;
         }
 
-        if (! ValidWebhookUrl::isTargetAllowed($url)) {
-            Log::warning("FlowForm Webhook SSRF target rejected: {$url} for Form #{$this->form->id}");
+        $pinned = null;
+        if (! config('flowform.webhooks.allow_private_targets', false)) {
+            $pinned = ValidWebhookUrl::resolveAllowedTarget($url);
+            if ($pinned === null) {
+                Log::warning('FlowForm Webhook target rejected (private or unresolvable host)', [
+                    'form_id' => $this->form->id,
+                    'host' => parse_url($url, PHP_URL_HOST),
+                ]);
 
-            return;
+                return;
+            }
         }
 
         $body = [
@@ -83,10 +90,16 @@ class DispatchFormWebhook implements ShouldQueue
         }
 
         try {
-            $response = Http::withoutRedirecting()
+            $request = Http::withoutRedirecting()
                 ->withHeaders($headers)
-                ->timeout(15)
-                ->post($url, $body);
+                ->timeout(15);
+
+            if ($pinned !== null) {
+                $address = str_contains($pinned['ip'], ':') ? "[{$pinned['ip']}]" : $pinned['ip'];
+                $request = $request->withOptions(['curl' => [CURLOPT_RESOLVE => ["{$pinned['host']}:{$pinned['port']}:{$address}"]]]);
+            }
+
+            $response = $request->withBody((string) $encodedBody, 'application/json')->post($url);
 
             if (! $response->successful()) {
                 Log::warning("FlowForm Webhook delivery failed for Form #{$this->form->id}", [
