@@ -195,7 +195,7 @@ class PublicEndpointController extends Controller
                 return true;
             }
 
-            // Wildcard matching e.g. *.buildeon.solutions
+            // Wildcard matching e.g. *.example.com
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
                 if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {

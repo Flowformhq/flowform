@@ -27,8 +27,9 @@ class FormsOverviewWidget extends StatsOverviewWidget
         $thisMonthSubmissions = (clone $submissionsQuery)->where('created_at', '>=', now()->startOfMonth())->count();
 
         $stats = [];
+        $meteringEnabled = (bool) config('flowform.metering.enabled', false);
 
-        if (config('flowform.metering.enabled', false)) {
+        if ($meteringEnabled) {
             $planLabel = $user?->isPro() ? 'Pro Tier' : 'Free Tier';
             $quota = $user?->isPro() ? '10,000 / mo' : '50 / mo';
             $planColor = $user?->isPro() ? 'success' : 'warning';
@@ -54,7 +55,7 @@ class FormsOverviewWidget extends StatsOverviewWidget
             ->description("Total forms: {$totalForms}")
             ->color('info');
 
-        if (config('flowform.metering.enabled', false)) {
+        if ($meteringEnabled) {
             $stats[] = Stat::make('Monthly Ingest', $thisMonthSubmissions)
                 ->description("Limit: {$quota}")
                 ->color($thisMonthSubmissions >= 50 && ! $user?->isPro() && $credits <= 0 ? 'danger' : 'success');

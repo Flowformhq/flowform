@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
 use App\Models\Form;
+use App\Models\MailSetting;
 use App\Models\Submission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,6 +45,13 @@ class ComplianceTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
+        $mailSetting = MailSetting::create([
+            'driver' => 'smtp',
+            'host' => 'smtp.mailtrap.io',
+            'port' => 2525,
+            'is_active' => true,
+        ]);
+
         $form = Form::create([
             'user_id' => $user->id,
             'name' => 'Intake Form',
@@ -53,12 +60,22 @@ class ComplianceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $submission = Submission::create([
+        // Submission with user_id
+        Submission::create([
             'uuid' => (string) Str::uuid(),
             'form_id' => $form->id,
             'user_id' => $user->id,
             'status' => 'completed',
             'data' => ['email' => 'client@acme.com', 'notes' => 'Confidential patient inquiry'],
+        ]);
+
+        // Submission without user_id (e.g. from public endpoint) belonging to user's form
+        Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $form->id,
+            'user_id' => null,
+            'status' => 'completed',
+            'data' => ['email' => 'public@acme.com', 'notes' => 'Public lead'],
         ]);
 
         $response = $this->getJson('/api/v1/compliance/gdpr/export');
@@ -67,11 +84,17 @@ class ComplianceTest extends TestCase
             ->assertHeader('Content-Disposition')
             ->assertJsonPath('tenant.email', $user->email)
             ->assertJsonCount(1, 'forms')
-            ->assertJsonCount(1, 'submissions');
+            ->assertJsonCount(2, 'submissions')
+            ->assertJsonMissingPath('mail_settings');
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
             'action' => 'gdpr.export',
+        ]);
+
+        // Instance mail setting must remain intact
+        $this->assertDatabaseHas('mail_settings', [
+            'id' => $mailSetting->id,
         ]);
     }
 
@@ -144,7 +167,7 @@ class ComplianceTest extends TestCase
         Submission::create([
             'uuid' => (string) Str::uuid(),
             'form_id' => $form->id,
-            'user_id' => $user->id,
+            'user_id' => null,
             'status' => 'completed',
             'data' => ['msg' => 'sub2'],
         ]);
@@ -157,12 +180,144 @@ class ComplianceTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('erased_submissions_count', 2);
 
-        $this->assertEquals(0, Submission::where('user_id', $user->id)->count());
+        $this->assertEquals(0, Submission::where('user_id', $user->id)->orWhere('form_id', $form->id)->count());
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
             'action' => 'gdpr.erasure.all_submissions',
         ]);
+    }
+
+    public function test_tenant_can_delete_account_and_erase_personal_data_leaving_instance_mail_settings_intact(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test-token')->plainTextToken;
+        Sanctum::actingAs($user);
+
+        $mailSetting = MailSetting::create([
+            'driver' => 'smtp',
+            'host' => 'smtp.mailtrap.io',
+            'is_active' => true,
+        ]);
+
+        $form = Form::create([
+            'user_id' => $user->id,
+            'name' => 'Account Form',
+            'slug' => 'account-form',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $submission = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $form->id,
+            'user_id' => $user->id,
+            'status' => 'completed',
+            'data' => ['email' => 'client@acme.com'],
+        ]);
+
+        $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'delete_account' => true,
+            'confirm' => 'DELETE',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('mode', 'account_erased');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertDatabaseMissing('forms', ['id' => $form->id]);
+        $this->assertDatabaseMissing('submissions', ['id' => $submission->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', ['tokenable_id' => $user->id]);
+
+        // Instance mail setting must be preserved
+        $this->assertDatabaseHas('mail_settings', ['id' => $mailSetting->id]);
+    }
+
+    public function test_account_erasure_requires_confirm_parameter(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'delete_account' => true,
+        ]);
+
+        $response->assertStatus(422);
+
+        $responseInvalid = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'delete_account' => true,
+            'confirm' => 'WRONG',
+        ]);
+
+        $responseInvalid->assertStatus(422);
+    }
+
+    public function test_erasure_of_user_a_does_not_touch_user_b_data(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $mailSetting = MailSetting::create([
+            'driver' => 'smtp',
+            'host' => 'smtp.mailtrap.io',
+            'is_active' => true,
+        ]);
+
+        $formA = Form::create([
+            'user_id' => $userA->id,
+            'name' => 'Form A',
+            'slug' => 'form-a',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $subA = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formA->id,
+            'user_id' => $userA->id,
+            'status' => 'completed',
+            'data' => ['email' => 'shared@example.com'],
+        ]);
+
+        $formB = Form::create([
+            'user_id' => $userB->id,
+            'name' => 'Form B',
+            'slug' => 'form-b',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $subB = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formB->id,
+            'user_id' => $userB->id,
+            'status' => 'completed',
+            'data' => ['email' => 'shared@example.com'],
+        ]);
+
+        // Act as User A and delete account
+        Sanctum::actingAs($userA);
+
+        $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'delete_account' => true,
+            'confirm' => 'DELETE',
+        ]);
+
+        $response->assertStatus(200);
+
+        // User A's data should be erased
+        $this->assertDatabaseMissing('users', ['id' => $userA->id]);
+        $this->assertDatabaseMissing('forms', ['id' => $formA->id]);
+        $this->assertDatabaseMissing('submissions', ['id' => $subA->id]);
+
+        // User B's data must remain intact
+        $this->assertDatabaseHas('users', ['id' => $userB->id]);
+        $this->assertDatabaseHas('forms', ['id' => $formB->id]);
+        $this->assertDatabaseHas('submissions', ['id' => $subB->id]);
+
+        // Instance mail setting must remain intact
+        $this->assertDatabaseHas('mail_settings', ['id' => $mailSetting->id]);
     }
 
     public function test_viewing_encrypted_submission_records_hipaa_audit_trail(): void
