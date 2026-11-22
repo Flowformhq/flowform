@@ -117,6 +117,9 @@ test('FormsOverviewWidget respects metering config', function () {
     config(['flowform.metering.enabled' => false]);
     $widget = new class extends FormsOverviewWidget
     {
+        /**
+         * @return array<int, \Filament\Widgets\StatsOverviewWidget\Stat>
+         */
         public function testGetStats(): array
         {
             return $this->getStats();
