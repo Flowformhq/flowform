@@ -26,12 +26,14 @@ Route::middleware(['web', 'guest'])->group(function () {
         ->name('social.callback');
 });
 
-Route::middleware(['web', 'auth'])->group(function () {
-    Route::get('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
-    Route::get('billing/success', [BillingController::class, 'success'])->name('billing.success');
-    Route::get('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
-});
+if (config('flowform.metering.enabled', false)) {
+    Route::middleware(['web', 'auth'])->group(function () {
+        Route::get('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('billing/success', [BillingController::class, 'success'])->name('billing.success');
+        Route::get('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
+    });
 
-Route::post('api/v1/zoneless/webhook', [BillingController::class, 'webhook'])
-    ->withoutMiddleware([PreventRequestForgery::class])
-    ->name('zoneless.webhook');
+    Route::post('api/v1/zoneless/webhook', [BillingController::class, 'webhook'])
+        ->withoutMiddleware([PreventRequestForgery::class])
+        ->name('zoneless.webhook');
+}
