@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Mail\VerifyNotificationRecipient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class Form extends Model
@@ -48,14 +50,72 @@ class Form extends Model
                 $form->uuid = Str::uuid()->toString();
             }
             if (empty($form->access_key)) {
-                $form->access_key = 'ff_' . strtolower(Str::random(10));
+                $form->access_key = 'ff_'.strtolower(Str::random(10));
             }
             if (empty($form->slug)) {
-                $form->slug = Str::slug($form->name) ?: ('form-' . substr($form->uuid, 0, 8));
+                $form->slug = Str::slug($form->name) ?: ('form-'.substr($form->uuid, 0, 8));
             }
+        });
+
+        static::saved(function (Form $form) {
+            $form->syncNotificationRecipients();
         });
     }
 
+    /**
+     * @return HasMany<NotificationRecipient, $this>
+     */
+    public function recipients(): HasMany
+    {
+        return $this->hasMany(NotificationRecipient::class);
+    }
+
+    public function syncNotificationRecipients(): void
+    {
+        if (empty($this->notification_email)) {
+            $this->recipients()->delete();
+
+            return;
+        }
+
+        $emails = array_unique(array_filter(array_map('trim', explode(',', strtolower($this->notification_email)))));
+
+        $this->recipients()->whereNotIn('email', $emails)->delete();
+
+        $owner = $this->user;
+        $ownerEmail = $owner && $owner->email_verified_at ? strtolower($owner->email) : null;
+
+        foreach ($emails as $email) {
+            $recipient = $this->recipients()->firstOrNew(['email' => $email]);
+
+            if ($recipient->isVerified()) {
+                continue;
+            }
+
+            if ($ownerEmail && $email === $ownerEmail) {
+                $recipient->verified_at = now();
+                $recipient->save();
+
+                continue;
+            }
+
+            if ($recipient->exists) {
+                continue;
+            }
+
+            $recipient->save();
+
+            try {
+                Mail::to($email)->send(new VerifyNotificationRecipient($recipient));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -134,7 +194,7 @@ class Form extends Model
             // Wildcard matching e.g. *.myportfolio.com
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
                     return true;
                 }
             }

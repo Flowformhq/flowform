@@ -159,6 +159,7 @@ test('honeypot submission via _gotcha is quietly discarded without saving or ema
         'notification_email' => 'alerts@example.com',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-contact', [
         'name' => 'Spam Bot',
@@ -185,6 +186,7 @@ test('honeypot submission via _honeypot is quietly discarded', function () {
         'notification_email' => 'alerts@example.com',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-form', [
         'name' => 'Spam Bot 2',
@@ -205,6 +207,8 @@ test('successful submission dispatches SubmissionReceived email to configured no
         'notification_email' => 'sales@example.com',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/leads', [
         'full_name' => 'Jane Smith',
@@ -228,6 +232,8 @@ test('supports comma-separated multiple notification emails', function () {
         'notification_email' => 'w@example.com, sales@example.com',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $this->postJson('/api/v1/f/partners', ['company' => 'Partner Co'])->assertOk();
 
