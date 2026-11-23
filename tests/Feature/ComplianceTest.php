@@ -78,13 +78,32 @@ class ComplianceTest extends TestCase
             'data' => ['email' => 'public@acme.com', 'notes' => 'Public lead'],
         ]);
 
+        // Submission made to another tenant's form
+        $otherTenant = User::factory()->create();
+        $otherForm = Form::create([
+            'user_id' => $otherTenant->id,
+            'name' => 'Other Tenant Form',
+            'slug' => 'other-tenant-form',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+        Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $otherForm->id,
+            'user_id' => $user->id,
+            'status' => 'completed',
+            'data' => ['email' => $user->email, 'feedback' => 'External feedback'],
+        ]);
+
         $response = $this->getJson('/api/v1/compliance/gdpr/export');
 
         $response->assertStatus(200)
             ->assertHeader('Content-Disposition')
             ->assertJsonPath('tenant.email', $user->email)
             ->assertJsonCount(1, 'forms')
-            ->assertJsonCount(2, 'submissions')
+            ->assertJsonCount(3, 'submissions')
+            ->assertJsonCount(2, 'submissions_received')
+            ->assertJsonCount(1, 'submissions_made')
             ->assertJsonMissingPath('mail_settings');
 
         $this->assertDatabaseHas('audit_logs', [
@@ -318,6 +337,132 @@ class ComplianceTest extends TestCase
 
         // Instance mail setting must remain intact
         $this->assertDatabaseHas('mail_settings', ['id' => $mailSetting->id]);
+    }
+
+    public function test_account_erasure_unlinks_submissions_made_to_other_tenant_forms_leaving_them_intact(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $formA = Form::create([
+            'user_id' => $userA->id,
+            'name' => 'Form A',
+            'slug' => 'form-a',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $formB = Form::create([
+            'user_id' => $userB->id,
+            'name' => 'Form B',
+            'slug' => 'form-b',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $subOwn = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formA->id,
+            'user_id' => $userA->id,
+            'status' => 'completed',
+            'data' => ['message' => 'Own submission'],
+        ]);
+
+        // User A submitted to User B's form while authenticated
+        $subOnB = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formB->id,
+            'user_id' => $userA->id,
+            'status' => 'completed',
+            'data' => ['message' => 'Feedback for B'],
+        ]);
+
+        Sanctum::actingAs($userA);
+
+        $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'delete_account' => true,
+            'confirm' => 'DELETE',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('mode', 'account_erased');
+
+        // User A and their own form/submission are gone
+        $this->assertDatabaseMissing('users', ['id' => $userA->id]);
+        $this->assertDatabaseMissing('forms', ['id' => $formA->id]);
+        $this->assertDatabaseMissing('submissions', ['id' => $subOwn->id]);
+
+        // Submission on User B's form must STILL EXIST with user_id = null
+        $this->assertDatabaseHas('submissions', [
+            'id' => $subOnB->id,
+            'form_id' => $formB->id,
+            'user_id' => null,
+        ]);
+
+        // User B can still access their submission
+        Sanctum::actingAs($userB);
+        $getResponse = $this->getJson("/api/v1/submissions/{$subOnB->uuid}");
+        $getResponse->assertStatus(200);
+    }
+
+    public function test_purge_all_submissions_does_not_touch_submissions_on_other_tenant_forms(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $formA = Form::create([
+            'user_id' => $userA->id,
+            'name' => 'Form A',
+            'slug' => 'form-a',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $formB = Form::create([
+            'user_id' => $userB->id,
+            'name' => 'Form B',
+            'slug' => 'form-b',
+            'type' => 'endpoint',
+            'is_active' => true,
+        ]);
+
+        $subOwn = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formA->id,
+            'user_id' => $userA->id,
+            'status' => 'completed',
+            'data' => ['message' => 'Own submission'],
+        ]);
+
+        // User A submitted to User B's form
+        $subOnB = Submission::create([
+            'uuid' => (string) Str::uuid(),
+            'form_id' => $formB->id,
+            'user_id' => $userA->id,
+            'status' => 'completed',
+            'data' => ['message' => 'Submission to B'],
+        ]);
+
+        Sanctum::actingAs($userA);
+
+        $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
+            'purge_all_submissions' => true,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('erased_submissions_count', 1);
+
+        // Own form's submission is deleted
+        $this->assertDatabaseMissing('submissions', ['id' => $subOwn->id]);
+
+        // Submission on User B's form remains intact
+        $this->assertDatabaseHas('submissions', [
+            'id' => $subOnB->id,
+            'form_id' => $formB->id,
+            'user_id' => $userA->id,
+        ]);
     }
 
     public function test_viewing_encrypted_submission_records_hipaa_audit_trail(): void
