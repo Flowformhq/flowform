@@ -465,3 +465,29 @@ test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', functi
         return $job->form->id === $form->id && $job->payload['lead_name'] === 'John Agency';
     });
 });
+
+test('POST /f/{slug} stores _replyto so the queued notification can use it as Reply-To', function () {
+    $form = Form::create([
+        'name' => 'Reply To Form',
+        'slug' => 'reply-to-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/reply-to-form', [
+        'name' => 'Charlie',
+        'email' => 'charlie@example.com',
+        '_replyto' => 'charlie-alt@example.com',
+        'message' => 'Testing reply-to',
+    ]);
+
+    $response->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->first();
+    expect($submission)->not->toBeNull();
+    expect($submission->data)->toHaveKey('email');
+    expect($submission->data['email'])->toEqual('charlie@example.com');
+    expect($submission->data['_replyto'])->toEqual('charlie-alt@example.com');
+    expect((new SubmissionReceived($form, $submission))->envelope()->hasReplyTo('charlie-alt@example.com'))->toBeTrue();
+    expect($submission->data['message'])->toEqual('Testing reply-to');
+});

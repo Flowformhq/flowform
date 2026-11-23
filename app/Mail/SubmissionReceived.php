@@ -38,10 +38,33 @@ class SubmissionReceived extends Mailable implements ShouldQueue
             );
         }
 
+        $replyTo = $this->resolveReplyTo();
+
         return new Envelope(
             from: $from,
+            replyTo: $replyTo ? [$replyTo] : [],
             subject: "New Submission: {$this->form->name}",
         );
+    }
+
+    protected function resolveReplyTo(): ?string
+    {
+        $data = $this->submission->data;
+        if (! is_array($data)) {
+            return null;
+        }
+
+        foreach (['_replyto', 'reply_to', 'email'] as $key) {
+            $candidate = $data[$key] ?? null;
+            if (is_string($candidate)) {
+                $candidate = trim($candidate);
+                if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function content(): Content
