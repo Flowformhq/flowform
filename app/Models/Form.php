@@ -135,6 +135,7 @@ class Form extends Model
         return $this->hasMany(Step::class)->orderBy('step_number');
     }
 
+    /** @return HasMany<Field, $this> */
     public function fields(): HasMany
     {
         return $this->hasMany(Field::class)->orderBy('order');

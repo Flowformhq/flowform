@@ -274,13 +274,8 @@ class SubmissionController extends Controller
 
     protected function ensureActiveFormForPublic(Submission $submission, Request $request): void
     {
-        if ($this->isPublicRequest($request) && ! $submission->form?->is_active) {
+        if (! $request->user() && ! $submission->form->is_active) {
             abort(422, 'This form is currently inactive.');
         }
-    }
-
-    protected function isPublicRequest(Request $request): bool
-    {
-        return $request->is('*/public/*') || str_contains($request->path(), 'public/submissions');
     }
 }
