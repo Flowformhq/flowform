@@ -24,20 +24,111 @@ class MailSettingsPage extends Page
 
     protected string $view = 'filament.pages.mail-settings';
 
+    public const PRESETS = [
+        'resend' => [
+            'name' => 'Resend',
+            'driver' => 'resend',
+            'host' => '',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Modern developer email platform (3,000 free emails/month). Enter your API key.',
+            'url' => 'https://resend.com/api-keys',
+        ],
+        'brevo' => [
+            'name' => 'Brevo',
+            'driver' => 'smtp',
+            'host' => 'smtp-relay.brevo.com',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Free tier offers 300 emails/day. Generate SMTP credentials in your Brevo dashboard.',
+            'url' => 'https://app.brevo.com/settings/keys/smtp',
+        ],
+        'postmark' => [
+            'name' => 'Postmark',
+            'driver' => 'postmark',
+            'host' => '',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Strict deliverability with high inbox rates. Enter your Server API Token.',
+            'url' => 'https://account.postmarkapp.com/servers',
+        ],
+        'ses' => [
+            'name' => 'Amazon SES',
+            'driver' => 'ses',
+            'host' => '',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Cost-effective high-volume delivery on AWS. Configure AWS access key, secret and region.',
+            'url' => 'https://console.aws.amazon.com/ses/',
+        ],
+        'mailgun' => [
+            'name' => 'Mailgun',
+            'driver' => 'smtp',
+            'host' => 'smtp.mailgun.org',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Reliable sending via Mailgun SMTP relay. Find credentials in Sending > Domains.',
+            'url' => 'https://app.mailgun.com/app/sending/domains',
+        ],
+        'smtp2go' => [
+            'name' => 'SMTP2GO',
+            'driver' => 'smtp',
+            'host' => 'mail.smtp2go.com',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Free tier provides 1,000 emails/month. Generate an SMTP user in Settings > Users.',
+            'url' => 'https://app.smtp2go.com/settings/users',
+        ],
+        'smtp' => [
+            'name' => 'Generic SMTP',
+            'driver' => 'smtp',
+            'host' => '',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Connect to any standard SMTP server (cPanel, Postfix, Mailtrap, Hostinger).',
+            'url' => null,
+        ],
+        'log' => [
+            'name' => 'Local Log',
+            'driver' => 'log',
+            'host' => '',
+            'port' => 587,
+            'encryption' => 'tls',
+            'hint' => 'Writes messages to storage/logs/laravel.log without dispatching external emails.',
+            'url' => null,
+        ],
+    ];
+
+    public ?string $preset = null;
+
     public string $driver = 'smtp';
+
     public ?string $host = '';
+
     public int $port = 587;
+
     public ?string $encryption = 'tls';
+
     public ?string $username = '';
+
     public ?string $password = '';
+
     public ?string $api_key = '';
+
     public ?string $region = 'us-east-1';
+
     public ?string $from_address = '';
+
     public ?string $from_name = 'FlowForm Intake';
+
     public bool $is_active = true;
+
     public string $test_recipient = '';
+
     public bool $showPassword = false;
+
     public bool $showApiKey = false;
+
     public ?array $testResult = null;
 
     public function mount(): void
@@ -56,9 +147,11 @@ class MailSettingsPage extends Page
             $this->from_address = $setting->from_address ?? config('mail.from.address', 'noreply@flowformhq.com');
             $this->from_name = $setting->from_name ?? config('mail.from.name', 'FlowForm Intake');
             $this->is_active = $setting->is_active;
+            $this->preset = $this->detectPreset($this->driver, $this->host);
         } else {
             $this->from_address = config('mail.from.address', 'noreply@flowformhq.com');
             $this->from_name = config('mail.from.name', 'FlowForm Intake');
+            $this->preset = 'smtp';
         }
 
         if (empty($this->test_recipient)) {
@@ -66,9 +159,49 @@ class MailSettingsPage extends Page
         }
     }
 
+    public function selectPreset(string $presetKey): void
+    {
+        $key = strtolower($presetKey);
+        if ($key === 'generic') {
+            $key = 'smtp';
+        }
+
+        $this->preset = $key;
+
+        if (! isset(self::PRESETS[$key])) {
+            return;
+        }
+
+        $preset = self::PRESETS[$key];
+        $this->driver = $preset['driver'];
+        $this->host = $preset['host'];
+        $this->port = $preset['port'];
+        $this->encryption = $preset['encryption'];
+    }
+
     public function selectDriver(string $driver): void
     {
         $this->driver = $driver;
+        $this->preset = $this->detectPreset($driver, $this->host);
+    }
+
+    protected function detectPreset(string $driver, ?string $host): string
+    {
+        if ($driver === 'smtp') {
+            if ($host && str_contains($host, 'brevo')) {
+                return 'brevo';
+            }
+            if ($host && str_contains($host, 'mailgun')) {
+                return 'mailgun';
+            }
+            if ($host && str_contains($host, 'smtp2go')) {
+                return 'smtp2go';
+            }
+
+            return 'smtp';
+        }
+
+        return $driver;
     }
 
     public function toggleShowPassword(): void
@@ -84,6 +217,8 @@ class MailSettingsPage extends Page
     protected function getViewData(): array
     {
         return [
+            'presets' => self::PRESETS,
+            'preset' => $this->preset,
             'driver' => $this->driver,
             'is_active' => $this->is_active,
             'showPassword' => $this->showPassword,
@@ -100,7 +235,7 @@ class MailSettingsPage extends Page
             'port' => ['integer', 'min:1', 'max:65535'],
         ]);
 
-        $isDemo = str_contains(request()->getHost(), 'demo') || request()->has('demo');
+        $isDemo = str_contains(request()->getHost(), 'demo');
 
         if ($isDemo) {
             Notification::make()
@@ -112,7 +247,7 @@ class MailSettingsPage extends Page
             return;
         }
 
-        $setting = MailSetting::latest()->first() ?? new MailSetting();
+        $setting = MailSetting::latest()->first() ?? new MailSetting;
 
         $setting->driver = $this->driver;
         $setting->host = $this->host ?: null;
@@ -147,19 +282,15 @@ class MailSettingsPage extends Page
             'test_recipient' => ['required', 'email'],
         ]);
 
-        $isDemo = str_contains(request()->getHost(), 'demo') || request()->has('demo');
+        $isDemo = str_contains(request()->getHost(), 'demo');
 
         if ($isDemo) {
-            $this->testResult = [
-                'success' => true,
-                'message' => "Diagnostic probe dispatched to {$this->test_recipient} via {$this->driver}. Sandbox handshake verified: 250 2.0.0 OK (Simulated Latency: 46ms).",
-                'timestamp' => now()->format('H:i:s'),
-            ];
+            $this->testResult = null;
 
             Notification::make()
-                ->title('Diagnostic Probe Verified')
-                ->body($this->testResult['message'])
-                ->success()
+                ->title('Demo Instance')
+                ->body('Test sending is disabled on the demo instance.')
+                ->info()
                 ->send();
 
             return;

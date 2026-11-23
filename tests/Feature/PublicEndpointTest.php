@@ -465,3 +465,28 @@ test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', functi
         return $job->form->id === $form->id && $job->payload['lead_name'] === 'John Agency';
     });
 });
+
+test('POST /f/{slug} strips _replyto from stored submission data while preserving email', function () {
+    $form = Form::create([
+        'name' => 'Reply To Form',
+        'slug' => 'reply-to-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/reply-to-form', [
+        'name' => 'Charlie',
+        'email' => 'charlie@example.com',
+        '_replyto' => 'charlie-alt@example.com',
+        'message' => 'Testing reply-to stripping',
+    ]);
+
+    $response->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->first();
+    expect($submission)->not->toBeNull();
+    expect($submission->data)->toHaveKey('email');
+    expect($submission->data['email'])->toEqual('charlie@example.com');
+    expect($submission->data)->not->toHaveKey('_replyto');
+    expect($submission->data['message'])->toEqual('Testing reply-to stripping');
+});

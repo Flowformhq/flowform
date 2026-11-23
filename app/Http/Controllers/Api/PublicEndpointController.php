@@ -96,6 +96,7 @@ class PublicEndpointController extends Controller
             '_redirect',
             '_token',
             '_method',
+            '_replyto',
             'cf-turnstile-response',
             '_turnstile',
             'g-recaptcha-response',

@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Filament\Pages\MailSettingsPage;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\MailSetting;
 use App\Models\Submission;
+use App\Models\User;
 use Illuminate\Contracts\Mail\Factory;
 use Illuminate\Contracts\Mail\Mailer;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Livewire\Livewire;
 use Mockery\MockInterface;
 
 beforeEach(function () {
@@ -174,4 +177,138 @@ test('dynamic smtp mailer never inherits MAIL_URL', function () {
 
     expect(config('mail.mailers.flowform'))->not->toHaveKey('url');
     expect(config('mail.mailers.flowform.host'))->toBe('smtp.db-host.test');
+});
+
+test('Livewire selects Brevo preset and pre-fills host, port, and encryption', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(MailSettingsPage::class)
+        ->call('selectPreset', 'brevo')
+        ->assertSet('driver', 'smtp')
+        ->assertSet('host', 'smtp-relay.brevo.com')
+        ->assertSet('port', 587)
+        ->assertSet('encryption', 'tls')
+        ->assertSet('preset', 'brevo');
+});
+
+test('Livewire selects other presets and pre-fills appropriate values', function (string $preset, array $expected) {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $test = Livewire::test(MailSettingsPage::class)
+        ->call('selectPreset', $preset);
+
+    foreach ($expected as $property => $value) {
+        $test->assertSet($property, $value);
+    }
+})->with([
+    'mailgun' => ['mailgun', ['driver' => 'smtp', 'host' => 'smtp.mailgun.org', 'port' => 587, 'encryption' => 'tls']],
+    'smtp2go' => ['smtp2go', ['driver' => 'smtp', 'host' => 'mail.smtp2go.com', 'port' => 587, 'encryption' => 'tls']],
+    'resend' => ['resend', ['driver' => 'resend']],
+    'postmark' => ['postmark', ['driver' => 'postmark']],
+    'ses' => ['ses', ['driver' => 'ses']],
+    'generic' => ['smtp', ['driver' => 'smtp', 'host' => '', 'port' => 587, 'encryption' => 'tls']],
+]);
+
+test('SubmissionReceived envelope sets replyTo from email', function () {
+    $form = Form::create([
+        'name' => 'Contact',
+        'slug' => 'contact-reply-to',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $submission = new Submission([
+        'form_id' => $form->id,
+        'status' => 'completed',
+        'data' => [
+            'name' => 'Bob',
+            'email' => 'bob@example.com',
+        ],
+    ]);
+
+    $mailable = new SubmissionReceived($form, $submission);
+    $envelope = $mailable->envelope();
+
+    expect($envelope->hasReplyTo('bob@example.com'))->toBeTrue();
+});
+
+test('SubmissionReceived envelope prefers _replyto when both _replyto and email exist', function () {
+    $form = Form::create([
+        'name' => 'Contact',
+        'slug' => 'contact-reply-to-override',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $submission = new Submission([
+        'form_id' => $form->id,
+        'status' => 'completed',
+        'data' => [
+            'name' => 'Bob',
+            'email' => 'bob@example.com',
+            '_replyto' => 'override@example.com',
+        ],
+    ]);
+
+    $mailable = new SubmissionReceived($form, $submission);
+    $envelope = $mailable->envelope();
+
+    expect($envelope->hasReplyTo('override@example.com'))->toBeTrue();
+    expect($envelope->hasReplyTo('bob@example.com'))->toBeFalse();
+});
+
+test('SubmissionReceived envelope has no replyTo when value is invalid', function () {
+    $form = Form::create([
+        'name' => 'Contact',
+        'slug' => 'contact-reply-to-invalid',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $submission = new Submission([
+        'form_id' => $form->id,
+        'status' => 'completed',
+        'data' => [
+            'name' => 'Bob',
+            'email' => 'not-an-email',
+        ],
+    ]);
+
+    $mailable = new SubmissionReceived($form, $submission);
+    $envelope = $mailable->envelope();
+
+    expect($envelope->replyTo)->toBeEmpty();
+});
+
+test('MailSettingsPage on demo host shows info notification and does not attempt mail send', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $this->withServerVariables(['HTTP_HOST' => 'demo.flowformhq.com']);
+
+    Mail::fake();
+
+    Livewire::test(MailSettingsPage::class)
+        ->set('test_recipient', 'test@example.com')
+        ->call('sendTestEmail')
+        ->assertNotified();
+
+    Mail::assertNothingSent();
+});
+
+test('MailSettingsPage on non-demo host ignores demo query parameter and attempts send', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $this->withServerVariables(['HTTP_HOST' => 'app.flowformhq.com']);
+    request()->merge(['demo' => '1']);
+
+    Mail::fake();
+
+    $component = Livewire::test(MailSettingsPage::class)
+        ->set('test_recipient', 'test@example.com')
+        ->call('sendTestEmail');
+
+    expect($component->get('testResult'))->not->toBeNull();
+    expect($component->get('testResult')['message'])->toContain('test@example.com');
 });
