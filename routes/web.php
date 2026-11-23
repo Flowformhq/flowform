@@ -25,6 +25,7 @@ Route::get('admin/mail-settings-page', function () {
 });
 
 Route::get('admin/submissions/{submission}/files/{index}', [SubmissionFileController::class, 'download'])
+    ->whereNumber(['submission', 'index'])
     ->name('admin.submissions.files.download');
 
 Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])

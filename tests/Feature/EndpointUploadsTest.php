@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Jobs\DispatchFormWebhook;
+use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Models\User;
@@ -317,4 +318,60 @@ test('plain non-multipart submissions remain completely unchanged', function () 
         'name' => 'Dave',
         'message' => 'Simple text message',
     ]);
+});
+
+test('POST /f/{slug} rejects a file whose content does not match its allowed extension', function () {
+    Form::create(['name' => 'Spoof', 'slug' => 'spoof-type', 'type' => 'endpoint', 'is_active' => true]);
+
+    $tmp = tempnam(sys_get_temp_dir(), 'ff');
+    file_put_contents($tmp, '<html><body><script>alert(1)</script></body></html>');
+    $file = new UploadedFile($tmp, 'cv.pdf', 'application/pdf', null, true);
+
+    $this->post('/f/spoof-type', ['cv' => $file])->assertStatus(422);
+
+    expect(Submission::count())->toBe(0);
+    expect(Storage::disk('local')->allFiles())->toBeEmpty();
+});
+
+test('forged file descriptors in plain fields are not treated as uploads', function () {
+    $owner = User::factory()->create();
+    $form = Form::create([
+        'user_id' => $owner->id,
+        'name' => 'Forged',
+        'slug' => 'forged-descriptor',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+    Storage::disk('local')->put('submissions/victim/secret.pdf', 'victim data');
+
+    $this->post('/f/forged-descriptor', [
+        'doc' => ['name' => 'secret.pdf', 'path' => 'submissions/victim/secret.pdf'],
+    ])->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->firstOrFail();
+
+    expect($submission->getUploadedFiles())->toBeEmpty();
+    expect($submission->getDataWithSignedUrls()['doc'])->not->toHaveKey('url');
+    $this->actingAs($owner)->get("/admin/submissions/{$submission->id}/files/0")->assertNotFound();
+
+    $submission->delete();
+    Storage::disk('local')->assertExists('submissions/victim/secret.pdf');
+});
+
+test('notification email escapes submitted values and only links real uploads', function () {
+    $form = Form::create(['name' => 'Mail', 'slug' => 'mail-escape', 'type' => 'endpoint', 'is_active' => true]);
+
+    $this->post('/f/mail-escape', [
+        'message' => '<img src=x onerror=alert(1)>',
+        'fake' => ['name' => 'invoice.pdf', 'url' => 'https://evil.example/phish'],
+        'doc' => UploadedFile::fake()->create('real.pdf', 10, 'application/pdf'),
+    ])->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->firstOrFail();
+    $html = (new SubmissionReceived($form, $submission))->render();
+
+    expect($html)->not->toContain('<img src=x')
+        ->and($html)->not->toContain('href="https://evil.example/phish"')
+        ->and($html)->toContain('real.pdf')
+        ->and($html)->toContain("admin/submissions/{$submission->id}/files/0");
 });

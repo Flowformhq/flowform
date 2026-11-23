@@ -13,17 +13,19 @@ You received a new submission on **{{ $form->name }}** (`{{ $form->slug }}`).
 @if (!empty($data) && count($data) > 0)
 | Field | Value |
 | :--- | :--- |
+@php
+    $fileUrlPrefix = url("admin/submissions/{$submission->id}/files/");
+    $isFile = fn ($item) => is_array($item) && is_string($item['name'] ?? null) && is_string($item['url'] ?? null) && str_starts_with($item['url'], $fileUrlPrefix);
+    $fileLink = fn ($file) => '['.e(str_replace(['[', ']'], '', $file['name'])).']('.e($file['url']).')';
+@endphp
 @foreach ($data as $key => $value)
 @php
-    $displayValue = $value;
-    if (is_array($value)) {
-        if (isset($value['name'], $value['url'])) {
-            $displayValue = "[{$value['name']}]({$value['url']})";
-        } elseif (! empty($value) && isset($value[0]['name'], $value[0]['url'])) {
-            $displayValue = collect($value)->map(fn ($f) => "[{$f['name']}]({$f['url']})")->implode(', ');
-        } else {
-            $displayValue = json_encode($value);
-        }
+    if ($isFile($value)) {
+        $displayValue = $fileLink($value);
+    } elseif (is_array($value) && $value !== [] && collect($value)->every($isFile)) {
+        $displayValue = collect($value)->map($fileLink)->implode(', ');
+    } else {
+        $displayValue = e(is_array($value) ? json_encode($value) : (string) $value);
     }
 @endphp
 | **{{ ucwords(str_replace(['_', '-'], ' ', (string) $key)) }}** | {!! $displayValue !!} |

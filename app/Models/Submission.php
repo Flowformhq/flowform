@@ -9,6 +9,7 @@ use App\Services\ConditionResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -87,38 +88,25 @@ class Submission extends Model
         });
     }
 
-    public function resolveRouteBinding($value, $field = null): ?Model
+    public function isUploadDescriptor(mixed $value): bool
     {
-        return $this->where('id', $value)
-            ->orWhere('uuid', $value)
-            ->first();
+        return is_array($value)
+            && is_string($value['name'] ?? null)
+            && is_string($value['path'] ?? null)
+            && preg_match('#^submissions/'.preg_quote((string) $this->uuid, '#').'/[A-Za-z0-9]{40}\.[a-z0-9]+$#', $value['path']) === 1;
     }
 
-    /**
-     * Extract all uploaded file descriptor arrays from submission data.
-     *
-     * @return array<int, array{name: string, size?: int, mime?: string, path: string}>
-     */
+    /** @return list<array{name: string, path: string, size?: int, mime?: string}> */
     public function getUploadedFiles(): array
     {
-        $data = $this->data ?? [];
-        if (! is_array($data)) {
-            return [];
-        }
-
         $files = [];
-        $isFileArray = function ($arr): bool {
-            return is_array($arr) && isset($arr['name'], $arr['path']) && is_string($arr['path']);
-        };
 
-        foreach ($data as $val) {
-            if ($isFileArray($val)) {
-                $files[] = $val;
-            } elseif (is_array($val)) {
-                foreach ($val as $sub) {
-                    if ($isFileArray($sub)) {
-                        $files[] = $sub;
-                    }
+        foreach ($this->data ?? [] as $value) {
+            $candidates = $this->isUploadDescriptor($value) ? [$value] : (is_array($value) ? $value : []);
+
+            foreach ($candidates as $candidate) {
+                if ($this->isUploadDescriptor($candidate)) {
+                    $files[] = $candidate;
                 }
             }
         }
@@ -126,66 +114,37 @@ class Submission extends Model
         return $files;
     }
 
-    /**
-     * Return submission data with storage paths replaced with temporary signed URLs.
-     */
-    public function getDataWithSignedUrls(int $expirationHours = 24): array
+    /** @return array<array-key, mixed> */
+    public function getDataWithSignedUrls(): array
     {
-        $data = $this->data ?? [];
-        if (! is_array($data)) {
-            return [];
-        }
-
-        $fileIndex = 0;
-        $transform = function ($val) use (&$transform, &$fileIndex, $expirationHours) {
-            if (is_array($val) && isset($val['name'], $val['path']) && is_string($val['path'])) {
-                $currentIndex = $fileIndex++;
-                $transformed = $val;
-                unset($transformed['path']);
-                $transformed['url'] = URL::temporarySignedRoute(
+        $index = 0;
+        $sign = function (array $file) use (&$index): array {
+            return Arr::except($file, 'path') + [
+                'url' => URL::temporarySignedRoute(
                     'admin.submissions.files.download',
-                    now()->addHours($expirationHours),
-                    ['submission' => $this->id, 'index' => $currentIndex]
-                );
-
-                return $transformed;
-            }
-
-            if (is_array($val)) {
-                $result = [];
-                foreach ($val as $k => $item) {
-                    $result[$k] = $transform($item);
-                }
-
-                return $result;
-            }
-
-            return $val;
+                    now()->addDay(),
+                    ['submission' => $this->id, 'index' => $index++]
+                ),
+            ];
         };
 
-        return $transform($data);
+        return collect($this->data ?? [])
+            ->map(function ($value) use ($sign) {
+                if ($this->isUploadDescriptor($value)) {
+                    return $sign($value);
+                }
+
+                return is_array($value)
+                    ? array_map(fn ($item) => $this->isUploadDescriptor($item) ? $sign($item) : $item, $value)
+                    : $value;
+            })
+            ->all();
     }
 
-    /**
-     * Delete all uploaded files and storage directory for this submission.
-     */
     public function deleteUploadedFiles(): void
     {
-        $diskName = config('flowform.uploads.disk', 'local');
-        $disk = Storage::disk($diskName);
-        $files = $this->getUploadedFiles();
-
-        foreach ($files as $file) {
-            if (! empty($file['path']) && $disk->exists($file['path'])) {
-                $disk->delete($file['path']);
-            }
-        }
-
-        if (! empty($this->uuid)) {
-            $dir = "submissions/{$this->uuid}";
-            if ($disk->exists($dir)) {
-                $disk->deleteDirectory($dir);
-            }
+        if (filled($this->uuid)) {
+            Storage::disk(config('flowform.uploads.disk'))->deleteDirectory("submissions/{$this->uuid}");
         }
     }
 

@@ -13,8 +13,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class PublicEndpointController extends Controller
@@ -91,139 +92,40 @@ class PublicEndpointController extends Controller
             }
         }
 
-        // 4b. Validate and Process File Uploads (if any)
-        $allFiles = [];
-        $flattenFiles = function ($items) use (&$flattenFiles, &$allFiles): void {
-            foreach ($items as $item) {
-                if ($item instanceof UploadedFile) {
-                    $allFiles[] = $item;
-                } elseif (is_array($item)) {
-                    $flattenFiles($item);
-                }
-            }
-        };
-        $flattenFiles($request->allFiles());
+        $files = $request->allFiles();
+        $fileCount = count(Arr::flatten($files));
 
-        $uploadedFilesData = [];
-        if (! empty($allFiles)) {
-            $maxFiles = (int) config('flowform.uploads.max_files', 5);
-            if (count($allFiles) > $maxFiles) {
+        if ($fileCount > 0) {
+            $maxFiles = (int) config('flowform.uploads.max_files');
+            if ($fileCount > $maxFiles) {
                 return response()->json([
                     'success' => false,
                     'error' => "The maximum number of allowed files is {$maxFiles}.",
-                    'errors' => [
-                        'files' => ["The maximum number of allowed files is {$maxFiles}."],
-                    ],
+                    'errors' => ['files' => ["The maximum number of allowed files is {$maxFiles}."]],
                 ], 422)->header('Access-Control-Allow-Origin', '*');
             }
 
-            $maxKb = (int) config('flowform.uploads.max_kb', 10240);
-            $rawMimes = config('flowform.uploads.allowed_mimes', ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'zip']);
-            $allowedMimes = is_array($rawMimes) ? $rawMimes : explode(',', (string) $rawMimes);
-            $allowedMimes = array_values(array_filter(array_map(fn ($m) => strtolower(trim(ltrim($m, '.'))), $allowedMimes)));
+            $allowed = implode(',', (array) config('flowform.uploads.allowed_mimes'));
+            $fileRules = ['file', 'max:'.(int) config('flowform.uploads.max_kb'), 'mimes:'.$allowed, 'extensions:'.$allowed];
+            $validator = Validator::make($files, collect($files)
+                ->mapWithKeys(fn ($value, $field) => [(is_array($value) ? "{$field}.*" : $field) => $fileRules])
+                ->all());
 
-            $mimeExtensionMap = [
-                'application/pdf' => ['pdf'],
-                'image/png' => ['png'],
-                'image/jpeg' => ['jpg', 'jpeg'],
-                'image/gif' => ['gif'],
-                'image/webp' => ['webp'],
-                'text/plain' => ['txt', 'csv'],
-                'text/csv' => ['csv'],
-                'application/csv' => ['csv'],
-                'application/msword' => ['doc'],
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => ['docx'],
-                'application/vnd.ms-excel' => ['xls'],
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
-                'application/zip' => ['zip'],
-                'application/x-zip' => ['zip'],
-                'application/x-zip-compressed' => ['zip'],
-            ];
-
-            $errors = [];
-            foreach ($request->allFiles() as $field => $fileOrFiles) {
-                $fieldFiles = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
-                foreach ($fieldFiles as $file) {
-                    if (! ($file instanceof UploadedFile)) {
-                        continue;
-                    }
-
-                    if ($file->getSize() > ($maxKb * 1024)) {
-                        $errors[$field][] = "The file {$file->getClientOriginalName()} exceeds the maximum allowed size of {$maxKb} KB.";
-
-                        continue;
-                    }
-
-                    $ext = strtolower(ltrim((string) $file->getClientOriginalExtension(), '.'));
-                    $clientMime = strtolower((string) ($file->getClientMimeType() ?: ''));
-                    $guessedMime = strtolower((string) ($file->getMimeType() ?: ''));
-
-                    $isAllowed = in_array($ext, $allowedMimes, true)
-                        || in_array($clientMime, $allowedMimes, true)
-                        || in_array($guessedMime, $allowedMimes, true);
-
-                    if (! $isAllowed) {
-                        foreach ([$clientMime, $guessedMime] as $m) {
-                            if (isset($mimeExtensionMap[$m]) && ! empty(array_intersect($mimeExtensionMap[$m], $allowedMimes))) {
-                                $isAllowed = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (! $isAllowed) {
-                        $errors[$field][] = "The file {$file->getClientOriginalName()} has a disallowed type ({$ext}).";
-                    }
-                }
-            }
-
-            if (! empty($errors)) {
+            if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'error' => 'File upload validation failed.',
-                    'errors' => $errors,
+                    'errors' => $validator->errors()->toArray(),
                 ], 422)->header('Access-Control-Allow-Origin', '*');
             }
         }
 
         $submissionUuid = Str::uuid()->toString();
-
-        if (! empty($allFiles)) {
-            $diskName = config('flowform.uploads.disk', 'local');
-            $disk = Storage::disk($diskName);
-
-            foreach ($request->allFiles() as $field => $fileOrFiles) {
-                if (is_array($fileOrFiles)) {
-                    $list = [];
-                    foreach ($fileOrFiles as $file) {
-                        if ($file instanceof UploadedFile) {
-                            $ext = $file->guessExtension() ?: $file->getClientOriginalExtension();
-                            $filename = Str::random(40).($ext ? ".{$ext}" : '');
-                            $path = "submissions/{$submissionUuid}/{$filename}";
-                            $disk->putFileAs("submissions/{$submissionUuid}", $file, $filename);
-                            $list[] = [
-                                'name' => $file->getClientOriginalName(),
-                                'size' => $file->getSize(),
-                                'mime' => $file->getClientMimeType() ?: $file->getMimeType(),
-                                'path' => $path,
-                            ];
-                        }
-                    }
-                    $uploadedFilesData[$field] = $list;
-                } elseif ($fileOrFiles instanceof UploadedFile) {
-                    $ext = $fileOrFiles->guessExtension() ?: $fileOrFiles->getClientOriginalExtension();
-                    $filename = Str::random(40).($ext ? ".{$ext}" : '');
-                    $path = "submissions/{$submissionUuid}/{$filename}";
-                    $disk->putFileAs("submissions/{$submissionUuid}", $fileOrFiles, $filename);
-                    $uploadedFilesData[$field] = [
-                        'name' => $fileOrFiles->getClientOriginalName(),
-                        'size' => $fileOrFiles->getSize(),
-                        'mime' => $fileOrFiles->getClientMimeType() ?: $fileOrFiles->getMimeType(),
-                        'path' => $path,
-                    ];
-                }
-            }
-        }
+        $uploadedFilesData = collect($files)
+            ->map(fn ($value) => is_array($value)
+                ? array_map(fn (UploadedFile $file) => $this->storeUpload($file, $submissionUuid), $value)
+                : $this->storeUpload($value, $submissionUuid))
+            ->all();
 
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
         $reservedKeys = [
@@ -233,7 +135,6 @@ class PublicEndpointController extends Controller
             '_redirect',
             '_token',
             '_method',
-            '_replyto',
             'cf-turnstile-response',
             '_turnstile',
             'g-recaptcha-response',
@@ -295,6 +196,23 @@ class PublicEndpointController extends Controller
         }
 
         return $this->respondSuccess($request, $form, $submission);
+    }
+
+    /** @return array{name: string, size: int, mime: string, path: string} */
+    protected function storeUpload(UploadedFile $file, string $submissionUuid): array
+    {
+        $path = $file->storeAs(
+            "submissions/{$submissionUuid}",
+            Str::random(40).'.'.$file->guessExtension(),
+            ['disk' => config('flowform.uploads.disk')]
+        );
+
+        return [
+            'name' => str_replace(['/', '\\'], '_', $file->getClientOriginalName()),
+            'size' => (int) $file->getSize(),
+            'mime' => (string) $file->getMimeType(),
+            'path' => (string) $path,
+        ];
     }
 
     protected function respondSuccess(Request $request, Form $form, ?Submission $submission): JsonResponse|RedirectResponse
