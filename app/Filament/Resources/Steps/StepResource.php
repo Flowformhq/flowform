@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class StepResource extends Resource
 {
@@ -51,5 +52,11 @@ class StepResource extends Resource
             'create' => CreateStep::route('/create'),
             'edit' => EditStep::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->when(! auth()->user()?->is_admin, fn ($query) => $query->whereHas('form', fn ($q) => $q->where('user_id', auth()->id())));
     }
 }

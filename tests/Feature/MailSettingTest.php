@@ -180,8 +180,7 @@ test('dynamic smtp mailer never inherits MAIL_URL', function () {
 });
 
 test('Livewire selects Brevo preset and pre-fills host, port, and encryption', function () {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
 
     Livewire::test(MailSettingsPage::class)
         ->call('selectPreset', 'brevo')
@@ -193,8 +192,7 @@ test('Livewire selects Brevo preset and pre-fills host, port, and encryption', f
 });
 
 test('Livewire selects other presets and pre-fills appropriate values', function (string $preset, array $expected) {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
 
     $test = Livewire::test(MailSettingsPage::class)
         ->call('selectPreset', $preset);
@@ -283,8 +281,7 @@ test('SubmissionReceived envelope has no replyTo when value is invalid', functio
 });
 
 test('MailSettingsPage on demo host shows info notification and does not attempt mail send', function () {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
     request()->headers->set('HOST', 'demo.flowformhq.com');
 
     Mail::fake();
@@ -299,8 +296,7 @@ test('MailSettingsPage on demo host shows info notification and does not attempt
 });
 
 test('MailSettingsPage on non-demo host ignores demo query parameter and attempts send', function () {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
     $this->withServerVariables(['HTTP_HOST' => 'app.flowformhq.com']);
     request()->merge(['demo' => '1']);
 
