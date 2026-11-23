@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class Submission extends Model
@@ -79,6 +81,112 @@ class Submission extends Model
                 $submission->uuid = Str::uuid()->toString();
             }
         });
+
+        static::deleting(function (Submission $submission) {
+            $submission->deleteUploadedFiles();
+        });
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?Model
+    {
+        return $this->where('id', $value)
+            ->orWhere('uuid', $value)
+            ->first();
+    }
+
+    /**
+     * Extract all uploaded file descriptor arrays from submission data.
+     *
+     * @return array<int, array{name: string, size?: int, mime?: string, path: string}>
+     */
+    public function getUploadedFiles(): array
+    {
+        $data = $this->data ?? [];
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $files = [];
+        $isFileArray = function ($arr): bool {
+            return is_array($arr) && isset($arr['name'], $arr['path']) && is_string($arr['path']);
+        };
+
+        foreach ($data as $val) {
+            if ($isFileArray($val)) {
+                $files[] = $val;
+            } elseif (is_array($val)) {
+                foreach ($val as $sub) {
+                    if ($isFileArray($sub)) {
+                        $files[] = $sub;
+                    }
+                }
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * Return submission data with storage paths replaced with temporary signed URLs.
+     */
+    public function getDataWithSignedUrls(int $expirationHours = 24): array
+    {
+        $data = $this->data ?? [];
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $fileIndex = 0;
+        $transform = function ($val) use (&$transform, &$fileIndex, $expirationHours) {
+            if (is_array($val) && isset($val['name'], $val['path']) && is_string($val['path'])) {
+                $currentIndex = $fileIndex++;
+                $transformed = $val;
+                unset($transformed['path']);
+                $transformed['url'] = URL::temporarySignedRoute(
+                    'admin.submissions.files.download',
+                    now()->addHours($expirationHours),
+                    ['submission' => $this->id, 'index' => $currentIndex]
+                );
+
+                return $transformed;
+            }
+
+            if (is_array($val)) {
+                $result = [];
+                foreach ($val as $k => $item) {
+                    $result[$k] = $transform($item);
+                }
+
+                return $result;
+            }
+
+            return $val;
+        };
+
+        return $transform($data);
+    }
+
+    /**
+     * Delete all uploaded files and storage directory for this submission.
+     */
+    public function deleteUploadedFiles(): void
+    {
+        $diskName = config('flowform.uploads.disk', 'local');
+        $disk = Storage::disk($diskName);
+        $files = $this->getUploadedFiles();
+
+        foreach ($files as $file) {
+            if (! empty($file['path']) && $disk->exists($file['path'])) {
+                $disk->delete($file['path']);
+            }
+        }
+
+        if (! empty($this->uuid)) {
+            $dir = "submissions/{$this->uuid}";
+            if ($disk->exists($dir)) {
+                $disk->deleteDirectory($dir);
+            }
+        }
     }
 
     /** @return BelongsTo<Form, $this> */

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\NotificationVerificationController;
+use App\Http\Controllers\SubmissionFileController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,9 @@ Route::post('notifications/verify/{recipient}', [NotificationVerificationControl
 Route::get('admin/mail-settings-page', function () {
     return redirect('/admin/mail-settings');
 });
+
+Route::get('admin/submissions/{submission}/files/{index}', [SubmissionFileController::class, 'download'])
+    ->name('admin.submissions.files.download');
 
 Route::post('f/{slug}', [PublicEndpointController::class, 'submit'])
     ->middleware('throttle:endpoint-submissions')

@@ -51,7 +51,7 @@ class SubmissionReceived extends Mailable implements ShouldQueue
             with: [
                 'form' => $this->form,
                 'submission' => $this->submission,
-                'data' => $this->submission->data ?? [],
+                'data' => $this->submission->getDataWithSignedUrls(),
             ],
         );
     }

@@ -12,7 +12,10 @@ use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PublicEndpointController extends Controller
 {
@@ -88,6 +91,140 @@ class PublicEndpointController extends Controller
             }
         }
 
+        // 4b. Validate and Process File Uploads (if any)
+        $allFiles = [];
+        $flattenFiles = function ($items) use (&$flattenFiles, &$allFiles): void {
+            foreach ($items as $item) {
+                if ($item instanceof UploadedFile) {
+                    $allFiles[] = $item;
+                } elseif (is_array($item)) {
+                    $flattenFiles($item);
+                }
+            }
+        };
+        $flattenFiles($request->allFiles());
+
+        $uploadedFilesData = [];
+        if (! empty($allFiles)) {
+            $maxFiles = (int) config('flowform.uploads.max_files', 5);
+            if (count($allFiles) > $maxFiles) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "The maximum number of allowed files is {$maxFiles}.",
+                    'errors' => [
+                        'files' => ["The maximum number of allowed files is {$maxFiles}."],
+                    ],
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            $maxKb = (int) config('flowform.uploads.max_kb', 10240);
+            $rawMimes = config('flowform.uploads.allowed_mimes', ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'zip']);
+            $allowedMimes = is_array($rawMimes) ? $rawMimes : explode(',', (string) $rawMimes);
+            $allowedMimes = array_values(array_filter(array_map(fn ($m) => strtolower(trim(ltrim($m, '.'))), $allowedMimes)));
+
+            $mimeExtensionMap = [
+                'application/pdf' => ['pdf'],
+                'image/png' => ['png'],
+                'image/jpeg' => ['jpg', 'jpeg'],
+                'image/gif' => ['gif'],
+                'image/webp' => ['webp'],
+                'text/plain' => ['txt', 'csv'],
+                'text/csv' => ['csv'],
+                'application/csv' => ['csv'],
+                'application/msword' => ['doc'],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => ['docx'],
+                'application/vnd.ms-excel' => ['xls'],
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
+                'application/zip' => ['zip'],
+                'application/x-zip' => ['zip'],
+                'application/x-zip-compressed' => ['zip'],
+            ];
+
+            $errors = [];
+            foreach ($request->allFiles() as $field => $fileOrFiles) {
+                $fieldFiles = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
+                foreach ($fieldFiles as $file) {
+                    if (! ($file instanceof UploadedFile)) {
+                        continue;
+                    }
+
+                    if ($file->getSize() > ($maxKb * 1024)) {
+                        $errors[$field][] = "The file {$file->getClientOriginalName()} exceeds the maximum allowed size of {$maxKb} KB.";
+
+                        continue;
+                    }
+
+                    $ext = strtolower(ltrim((string) $file->getClientOriginalExtension(), '.'));
+                    $clientMime = strtolower((string) ($file->getClientMimeType() ?: ''));
+                    $guessedMime = strtolower((string) ($file->getMimeType() ?: ''));
+
+                    $isAllowed = in_array($ext, $allowedMimes, true)
+                        || in_array($clientMime, $allowedMimes, true)
+                        || in_array($guessedMime, $allowedMimes, true);
+
+                    if (! $isAllowed) {
+                        foreach ([$clientMime, $guessedMime] as $m) {
+                            if (isset($mimeExtensionMap[$m]) && ! empty(array_intersect($mimeExtensionMap[$m], $allowedMimes))) {
+                                $isAllowed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (! $isAllowed) {
+                        $errors[$field][] = "The file {$file->getClientOriginalName()} has a disallowed type ({$ext}).";
+                    }
+                }
+            }
+
+            if (! empty($errors)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'File upload validation failed.',
+                    'errors' => $errors,
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
+        $submissionUuid = Str::uuid()->toString();
+
+        if (! empty($allFiles)) {
+            $diskName = config('flowform.uploads.disk', 'local');
+            $disk = Storage::disk($diskName);
+
+            foreach ($request->allFiles() as $field => $fileOrFiles) {
+                if (is_array($fileOrFiles)) {
+                    $list = [];
+                    foreach ($fileOrFiles as $file) {
+                        if ($file instanceof UploadedFile) {
+                            $ext = $file->guessExtension() ?: $file->getClientOriginalExtension();
+                            $filename = Str::random(40).($ext ? ".{$ext}" : '');
+                            $path = "submissions/{$submissionUuid}/{$filename}";
+                            $disk->putFileAs("submissions/{$submissionUuid}", $file, $filename);
+                            $list[] = [
+                                'name' => $file->getClientOriginalName(),
+                                'size' => $file->getSize(),
+                                'mime' => $file->getClientMimeType() ?: $file->getMimeType(),
+                                'path' => $path,
+                            ];
+                        }
+                    }
+                    $uploadedFilesData[$field] = $list;
+                } elseif ($fileOrFiles instanceof UploadedFile) {
+                    $ext = $fileOrFiles->guessExtension() ?: $fileOrFiles->getClientOriginalExtension();
+                    $filename = Str::random(40).($ext ? ".{$ext}" : '');
+                    $path = "submissions/{$submissionUuid}/{$filename}";
+                    $disk->putFileAs("submissions/{$submissionUuid}", $fileOrFiles, $filename);
+                    $uploadedFilesData[$field] = [
+                        'name' => $fileOrFiles->getClientOriginalName(),
+                        'size' => $fileOrFiles->getSize(),
+                        'mime' => $fileOrFiles->getClientMimeType() ?: $fileOrFiles->getMimeType(),
+                        'path' => $path,
+                    ];
+                }
+            }
+        }
+
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
         $reservedKeys = [
             '_gotcha',
@@ -96,16 +233,21 @@ class PublicEndpointController extends Controller
             '_redirect',
             '_token',
             '_method',
+            '_replyto',
             'cf-turnstile-response',
             '_turnstile',
             'g-recaptcha-response',
             'h-captcha-response',
             '_hcaptcha',
         ];
-        $data = collect($request->all())->except($reservedKeys)->all();
+        $data = collect($request->all())
+            ->except($reservedKeys)
+            ->merge($uploadedFilesData)
+            ->all();
 
         $submission = new Submission([
             'form_id' => $form->id,
+            'uuid' => $submissionUuid,
             'status' => 'completed',
             'is_encrypted' => (bool) $form->is_encrypted,
             'current_step' => 1,
@@ -141,7 +283,7 @@ class PublicEndpointController extends Controller
         // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
         if (! empty($form->webhook_url)) {
             try {
-                DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $submission->getDataWithSignedUrls());
             } catch (\Throwable $e) {
                 report($e);
             }
