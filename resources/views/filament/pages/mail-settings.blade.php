@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     @php
-        $isDemo = str_contains(request()->getHost(), 'demo');
+        $isDemo = $this->isDemo();
     @endphp
 
     <div class="space-y-6 max-w-5xl">

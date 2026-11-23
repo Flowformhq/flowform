@@ -466,7 +466,7 @@ test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', functi
     });
 });
 
-test('POST /f/{slug} strips _replyto from stored submission data while preserving email', function () {
+test('POST /f/{slug} stores _replyto so the queued notification can use it as Reply-To', function () {
     $form = Form::create([
         'name' => 'Reply To Form',
         'slug' => 'reply-to-form',
@@ -478,7 +478,7 @@ test('POST /f/{slug} strips _replyto from stored submission data while preservin
         'name' => 'Charlie',
         'email' => 'charlie@example.com',
         '_replyto' => 'charlie-alt@example.com',
-        'message' => 'Testing reply-to stripping',
+        'message' => 'Testing reply-to',
     ]);
 
     $response->assertOk();
@@ -487,6 +487,7 @@ test('POST /f/{slug} strips _replyto from stored submission data while preservin
     expect($submission)->not->toBeNull();
     expect($submission->data)->toHaveKey('email');
     expect($submission->data['email'])->toEqual('charlie@example.com');
-    expect($submission->data)->not->toHaveKey('_replyto');
-    expect($submission->data['message'])->toEqual('Testing reply-to stripping');
+    expect($submission->data['_replyto'])->toEqual('charlie-alt@example.com');
+    expect((new SubmissionReceived($form, $submission))->envelope()->hasReplyTo('charlie-alt@example.com'))->toBeTrue();
+    expect($submission->data['message'])->toEqual('Testing reply-to');
 });

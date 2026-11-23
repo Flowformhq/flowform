@@ -159,30 +159,23 @@ class MailSettingsPage extends Page
         }
     }
 
+    public function isDemo(): bool
+    {
+        return str_starts_with(request()->getHost(), 'demo.');
+    }
+
     public function selectPreset(string $presetKey): void
     {
-        $key = strtolower($presetKey);
-        if ($key === 'generic') {
-            $key = 'smtp';
-        }
-
-        $this->preset = $key;
-
-        if (! isset(self::PRESETS[$key])) {
+        if (! isset(self::PRESETS[$presetKey])) {
             return;
         }
 
-        $preset = self::PRESETS[$key];
+        $this->preset = $presetKey;
+        $preset = self::PRESETS[$presetKey];
         $this->driver = $preset['driver'];
         $this->host = $preset['host'];
         $this->port = $preset['port'];
         $this->encryption = $preset['encryption'];
-    }
-
-    public function selectDriver(string $driver): void
-    {
-        $this->driver = $driver;
-        $this->preset = $this->detectPreset($driver, $this->host);
     }
 
     protected function detectPreset(string $driver, ?string $host): string
@@ -235,13 +228,11 @@ class MailSettingsPage extends Page
             'port' => ['integer', 'min:1', 'max:65535'],
         ]);
 
-        $isDemo = str_contains(request()->getHost(), 'demo');
-
-        if ($isDemo) {
+        if ($this->isDemo()) {
             Notification::make()
-                ->title('Demo Configuration Simulated')
-                ->body('Mail transport preferences updated in your live demo session.')
-                ->success()
+                ->title('Demo Instance')
+                ->body('Saving mail settings is disabled on the demo instance.')
+                ->info()
                 ->send();
 
             return;
@@ -282,9 +273,7 @@ class MailSettingsPage extends Page
             'test_recipient' => ['required', 'email'],
         ]);
 
-        $isDemo = str_contains(request()->getHost(), 'demo');
-
-        if ($isDemo) {
+        if ($this->isDemo()) {
             $this->testResult = null;
 
             Notification::make()

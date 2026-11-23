@@ -285,14 +285,15 @@ test('SubmissionReceived envelope has no replyTo when value is invalid', functio
 test('MailSettingsPage on demo host shows info notification and does not attempt mail send', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
-    $this->withServerVariables(['HTTP_HOST' => 'demo.flowformhq.com']);
+    request()->headers->set('HOST', 'demo.flowformhq.com');
 
     Mail::fake();
 
     Livewire::test(MailSettingsPage::class)
         ->set('test_recipient', 'test@example.com')
         ->call('sendTestEmail')
-        ->assertNotified();
+        ->assertNotified('Demo Instance')
+        ->assertSet('testResult', null);
 
     Mail::assertNothingSent();
 });
