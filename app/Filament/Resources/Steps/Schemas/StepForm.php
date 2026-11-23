@@ -21,7 +21,7 @@ class StepForm
             ->components([
                 Select::make('form_id')
                     ->label('Form')
-                    ->options(Form::query()->pluck('name', 'id'))
+                    ->options(Form::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->pluck('name', 'id'))
                     ->required()
                     ->searchable(),
                 Grid::make(2)

@@ -131,6 +131,11 @@ class MailSettingsPage extends Page
 
     public ?array $testResult = null;
 
+    public static function canAccess(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
     public function mount(): void
     {
         $setting = MailSetting::getActive() ?? MailSetting::latest()->first();
