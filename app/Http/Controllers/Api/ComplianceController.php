@@ -68,29 +68,34 @@ class ComplianceController extends Controller
 
         $userFormIds = $forms->pluck('id');
 
-        $submissions = Submission::where(function ($query) use ($user, $userFormIds) {
-            $query->where('user_id', $user->id)
-                ->orWhereIn('form_id', $userFormIds);
-        })
+        $mapSubmission = function (Submission $submission) {
+            return [
+                'uuid' => $submission->uuid,
+                'form_id' => $submission->form_id,
+                'status' => $submission->status,
+                'is_encrypted' => (bool) $submission->is_encrypted,
+                'payload' => $submission->data,
+                'created_at' => $submission->created_at?->toIso8601String(),
+            ];
+        };
+
+        $submissionsReceived = Submission::whereIn('form_id', $userFormIds)
             ->with('values')
             ->get()
-            ->map(function (Submission $submission) {
-                return [
-                    'uuid' => $submission->uuid,
-                    'form_id' => $submission->form_id,
-                    'status' => $submission->status,
-                    'is_encrypted' => (bool) $submission->is_encrypted,
-                    'payload' => $submission->data, // automatically decrypted via Submission mutator if encrypted
-                    'created_at' => $submission->created_at?->toIso8601String(),
-                ];
-            });
+            ->map($mapSubmission);
+
+        $submissionsMade = Submission::where('user_id', $user->id)
+            ->whereNotIn('form_id', $userFormIds)
+            ->with('values')
+            ->get()
+            ->map($mapSubmission);
 
         AuditLog::record(
             action: 'gdpr.export',
             auditable: $user,
             details: [
                 'forms_exported' => $forms->count(),
-                'submissions_exported' => $submissions->count(),
+                'submissions_exported' => $submissionsReceived->count() + $submissionsMade->count(),
             ],
             user: $user,
             request: $request
@@ -105,7 +110,8 @@ class ComplianceController extends Controller
                 'exported_at' => now()->toIso8601String(),
             ],
             'forms' => $forms,
-            'submissions' => $submissions,
+            'submissions_received' => $submissionsReceived,
+            'submissions_made' => $submissionsMade,
         ];
 
         return response()->json($payload, 200, [
@@ -134,21 +140,20 @@ class ComplianceController extends Controller
             $userFormIds = Form::where('user_id', $user->id)->pluck('id');
 
             // Find matching submissions under tenant forms
-            $matchingSubmissions = Submission::where(function ($query) use ($user, $userFormIds) {
-                $query->where('user_id', $user->id)
-                    ->orWhereIn('form_id', $userFormIds);
-            })->get()->filter(function (Submission $sub) use ($email) {
-                $data = $sub->data ?? [];
-                if (is_array($data)) {
-                    foreach ($data as $val) {
-                        if (is_string($val) && strtolower(trim($val)) === $email) {
-                            return true;
+            $matchingSubmissions = Submission::whereIn('form_id', $userFormIds)
+                ->get()
+                ->filter(function (Submission $sub) use ($email) {
+                    $data = $sub->data ?? [];
+                    if (is_array($data)) {
+                        foreach ($data as $val) {
+                            if (is_string($val) && strtolower(trim($val)) === $email) {
+                                return true;
+                            }
                         }
                     }
-                }
 
-                return false;
-            });
+                    return false;
+                });
 
             $count = $matchingSubmissions->count();
             foreach ($matchingSubmissions as $sub) {
@@ -180,18 +185,12 @@ class ComplianceController extends Controller
         if ($request->boolean('purge_all_submissions')) {
             $userFormIds = Form::where('user_id', $user->id)->pluck('id');
 
-            $submissionsQuery = Submission::where(function ($query) use ($user, $userFormIds) {
-                $query->where('user_id', $user->id)
-                    ->orWhereIn('form_id', $userFormIds);
-            });
+            $submissionsQuery = Submission::whereIn('form_id', $userFormIds);
 
             $count = $submissionsQuery->count();
 
-            DB::transaction(function () use ($user, $userFormIds) {
-                $subIds = Submission::where(function ($query) use ($user, $userFormIds) {
-                    $query->where('user_id', $user->id)
-                        ->orWhereIn('form_id', $userFormIds);
-                })->pluck('id');
+            DB::transaction(function () use ($userFormIds) {
+                $subIds = Submission::whereIn('form_id', $userFormIds)->pluck('id');
 
                 DB::table('submission_values')->whereIn('submission_id', $subIds)->delete();
                 Submission::whereIn('id', $subIds)->delete();
@@ -226,13 +225,15 @@ class ComplianceController extends Controller
 
             DB::transaction(function () use ($user) {
                 $userFormIds = Form::where('user_id', $user->id)->pluck('id');
-                $subIds = Submission::where(function ($query) use ($user, $userFormIds) {
-                    $query->where('user_id', $user->id)
-                        ->orWhereIn('form_id', $userFormIds);
-                })->pluck('id');
 
-                DB::table('submission_values')->whereIn('submission_id', $subIds)->delete();
-                Submission::whereIn('id', $subIds)->delete();
+                $ownSubIds = Submission::whereIn('form_id', $userFormIds)->pluck('id');
+                DB::table('submission_values')->whereIn('submission_id', $ownSubIds)->delete();
+                Submission::whereIn('id', $ownSubIds)->delete();
+
+                Submission::where('user_id', $user->id)
+                    ->whereNotIn('form_id', $userFormIds)
+                    ->update(['user_id' => null]);
+
                 Form::where('user_id', $user->id)->delete();
                 $user->tokens()->delete();
                 $user->delete();
