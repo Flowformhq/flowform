@@ -245,7 +245,7 @@ test('resend verification action queues one mail and a second within 10 minutes 
     // 2. Second resend within 10 minutes queues nothing and shows an error
     Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
         ->callAction("resend_verification_{$recipient->id}")
-        ->assertNotified();
+        ->assertNotified('Rate limit exceeded');
 
     Mail::assertNotQueued(VerifyNotificationRecipient::class);
     Mail::assertNothingOutgoing();
@@ -268,8 +268,7 @@ test('verified recipients do not show the resend verification action', function 
     $this->actingAs($admin);
 
     Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
-        ->assertActionHidden("resend_verification_{$recipient->id}")
-        ->assertActionHidden('resend_verification');
+        ->assertActionDoesNotExist("resend_verification_{$recipient->id}");
 });
 
 test('resend verification action enforces maximum 5 resends per day', function () {
@@ -307,7 +306,7 @@ test('resend verification action enforces maximum 5 resends per day', function (
     // 6th resend within the same day must be blocked by the daily limit
     Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
         ->callAction("resend_verification_{$recipient->id}")
-        ->assertNotified();
+        ->assertNotified('Rate limit exceeded');
 
     Mail::assertNotQueued(VerifyNotificationRecipient::class);
     Mail::assertNothingOutgoing();

@@ -18,59 +18,26 @@ class EditForm extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        $actions = [
+        /** @var Form $form */
+        $form = $this->getRecord();
+
+        $resendActions = $form->recipients
+            ->reject(fn (NotificationRecipient $recipient) => $recipient->isVerified())
+            ->map(fn (NotificationRecipient $recipient) => Action::make("resend_verification_{$recipient->id}")
+                ->label("Resend verification to {$recipient->email}")
+                ->icon('heroicon-o-paper-airplane')
+                ->color('warning')
+                ->action(fn () => $this->resendVerification($recipient)))
+            ->values()
+            ->all();
+
+        return [
+            ...$resendActions,
             DeleteAction::make(),
         ];
-
-        /** @var Form|null $form */
-        $form = $this->getRecord();
-        if ($form) {
-            foreach ($form->recipients as $recipient) {
-                $actions[] = Action::make("resend_verification_{$recipient->id}")
-                    ->label('Resend verification')
-                    ->icon('heroicon-o-paper-airplane')
-                    ->color('warning')
-                    ->visible(fn () => ! $recipient->fresh()->isVerified())
-                    ->action(fn () => $this->triggerResendVerification($recipient));
-            }
-
-            $actions[] = Action::make('resend_verification')
-                ->label('Resend verification')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('warning')
-                ->visible(fn () => $form->recipients()->whereNull('verified_at')->exists())
-                ->action(function (array $arguments = []) use ($form) {
-                    $recipientId = $arguments['recipient'] ?? $arguments['recipient_id'] ?? null;
-                    $recipient = $recipientId
-                        ? $form->recipients()->find($recipientId)
-                        : $form->recipients()->whereNull('verified_at')->first();
-
-                    if ($recipient) {
-                        $this->triggerResendVerification($recipient);
-                    }
-                });
-
-            $actions[] = Action::make('resendVerification')
-                ->label('Resend verification')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('warning')
-                ->visible(fn () => $form->recipients()->whereNull('verified_at')->exists())
-                ->action(function (array $arguments = []) use ($form) {
-                    $recipientId = $arguments['recipient'] ?? $arguments['recipient_id'] ?? null;
-                    $recipient = $recipientId
-                        ? $form->recipients()->find($recipientId)
-                        : $form->recipients()->whereNull('verified_at')->first();
-
-                    if ($recipient) {
-                        $this->triggerResendVerification($recipient);
-                    }
-                });
-        }
-
-        return $actions;
     }
 
-    public function triggerResendVerification(NotificationRecipient $recipient): void
+    protected function resendVerification(NotificationRecipient $recipient): void
     {
         if (! $recipient->resendVerification()) {
             Notification::make()
@@ -78,8 +45,6 @@ class EditForm extends EditRecord
                 ->body('Too many verification emails sent for this recipient. Please wait before requesting another.')
                 ->danger()
                 ->send();
-
-            $this->addError('resend_verification', 'Rate limit exceeded.');
 
             return;
         }
