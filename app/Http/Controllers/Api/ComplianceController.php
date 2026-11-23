@@ -190,7 +190,12 @@ class ComplianceController extends Controller
             $count = $submissionsQuery->count();
 
             DB::transaction(function () use ($userFormIds) {
-                $subIds = Submission::whereIn('form_id', $userFormIds)->pluck('id');
+                $submissions = Submission::whereIn('form_id', $userFormIds)->get();
+                foreach ($submissions as $sub) {
+                    $sub->deleteUploadedFiles();
+                }
+
+                $subIds = $submissions->pluck('id');
 
                 DB::table('submission_values')->whereIn('submission_id', $subIds)->delete();
                 Submission::whereIn('id', $subIds)->delete();
@@ -226,7 +231,12 @@ class ComplianceController extends Controller
             DB::transaction(function () use ($user) {
                 $userFormIds = Form::where('user_id', $user->id)->pluck('id');
 
-                $ownSubIds = Submission::whereIn('form_id', $userFormIds)->pluck('id');
+                $ownSubmissions = Submission::whereIn('form_id', $userFormIds)->get();
+                foreach ($ownSubmissions as $sub) {
+                    $sub->deleteUploadedFiles();
+                }
+
+                $ownSubIds = $ownSubmissions->pluck('id');
                 DB::table('submission_values')->whereIn('submission_id', $ownSubIds)->delete();
                 Submission::whereIn('id', $ownSubIds)->delete();
 

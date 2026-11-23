@@ -12,7 +12,11 @@ use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class PublicEndpointController extends Controller
 {
@@ -88,6 +92,41 @@ class PublicEndpointController extends Controller
             }
         }
 
+        $files = $request->allFiles();
+        $fileCount = count(Arr::flatten($files));
+
+        if ($fileCount > 0) {
+            $maxFiles = (int) config('flowform.uploads.max_files');
+            if ($fileCount > $maxFiles) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "The maximum number of allowed files is {$maxFiles}.",
+                    'errors' => ['files' => ["The maximum number of allowed files is {$maxFiles}."]],
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            $allowed = implode(',', (array) config('flowform.uploads.allowed_mimes'));
+            $fileRules = ['file', 'max:'.(int) config('flowform.uploads.max_kb'), 'mimes:'.$allowed, 'extensions:'.$allowed];
+            $validator = Validator::make($files, collect($files)
+                ->mapWithKeys(fn ($value, $field) => [(is_array($value) ? "{$field}.*" : $field) => $fileRules])
+                ->all());
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'File upload validation failed.',
+                    'errors' => $validator->errors()->toArray(),
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
+        $submissionUuid = Str::uuid()->toString();
+        $uploadedFilesData = collect($files)
+            ->map(fn ($value) => is_array($value)
+                ? array_map(fn (UploadedFile $file) => $this->storeUpload($file, $submissionUuid), $value)
+                : $this->storeUpload($value, $submissionUuid))
+            ->all();
+
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
         $reservedKeys = [
             '_gotcha',
@@ -102,10 +141,14 @@ class PublicEndpointController extends Controller
             'h-captcha-response',
             '_hcaptcha',
         ];
-        $data = collect($request->all())->except($reservedKeys)->all();
+        $data = collect($request->all())
+            ->except($reservedKeys)
+            ->merge($uploadedFilesData)
+            ->all();
 
         $submission = new Submission([
             'form_id' => $form->id,
+            'uuid' => $submissionUuid,
             'status' => 'completed',
             'is_encrypted' => (bool) $form->is_encrypted,
             'current_step' => 1,
@@ -141,7 +184,7 @@ class PublicEndpointController extends Controller
         // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
         if (! empty($form->webhook_url)) {
             try {
-                DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $submission->getDataWithSignedUrls());
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -153,6 +196,23 @@ class PublicEndpointController extends Controller
         }
 
         return $this->respondSuccess($request, $form, $submission);
+    }
+
+    /** @return array{name: string, size: int, mime: string, path: string} */
+    protected function storeUpload(UploadedFile $file, string $submissionUuid): array
+    {
+        $path = $file->storeAs(
+            "submissions/{$submissionUuid}",
+            Str::random(40).'.'.$file->guessExtension(),
+            ['disk' => config('flowform.uploads.disk')]
+        );
+
+        return [
+            'name' => str_replace(['/', '\\'], '_', $file->getClientOriginalName()),
+            'size' => (int) $file->getSize(),
+            'mime' => (string) $file->getMimeType(),
+            'path' => (string) $path,
+        ];
     }
 
     protected function respondSuccess(Request $request, Form $form, ?Submission $submission): JsonResponse|RedirectResponse

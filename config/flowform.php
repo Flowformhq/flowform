@@ -22,6 +22,18 @@ return [
         'allow_private_targets' => (bool) env('FLOWFORM_WEBHOOKS_ALLOW_PRIVATE_TARGETS', false),
     ],
 
+    'uploads' => [
+        'disk' => env('FLOWFORM_UPLOADS_DISK', 'local'),
+        'max_kb' => (int) env('FLOWFORM_UPLOADS_MAX_KB', 10240),
+        'max_files' => (int) env('FLOWFORM_UPLOADS_MAX_FILES', 5),
+        'allowed_mimes' => array_filter(
+            array_map(
+                'trim',
+                explode(',', env('FLOWFORM_UPLOADS_ALLOWED_MIMES', 'pdf,png,jpg,jpeg,gif,webp,txt,csv,doc,docx,xls,xlsx,zip'))
+            )
+        ),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Allowed Redirect Hosts
