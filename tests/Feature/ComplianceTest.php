@@ -101,7 +101,7 @@ class ComplianceTest extends TestCase
             ->assertHeader('Content-Disposition')
             ->assertJsonPath('tenant.email', $user->email)
             ->assertJsonCount(1, 'forms')
-            ->assertJsonCount(3, 'submissions')
+            ->assertJsonMissingPath('submissions')
             ->assertJsonCount(2, 'submissions_received')
             ->assertJsonCount(1, 'submissions_made')
             ->assertJsonMissingPath('mail_settings');

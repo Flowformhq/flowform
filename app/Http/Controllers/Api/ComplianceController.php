@@ -90,14 +90,12 @@ class ComplianceController extends Controller
             ->get()
             ->map($mapSubmission);
 
-        $allSubmissions = $submissionsReceived->concat($submissionsMade);
-
         AuditLog::record(
             action: 'gdpr.export',
             auditable: $user,
             details: [
                 'forms_exported' => $forms->count(),
-                'submissions_exported' => $allSubmissions->count(),
+                'submissions_exported' => $submissionsReceived->count() + $submissionsMade->count(),
             ],
             user: $user,
             request: $request
@@ -112,7 +110,6 @@ class ComplianceController extends Controller
                 'exported_at' => now()->toIso8601String(),
             ],
             'forms' => $forms,
-            'submissions' => $allSubmissions,
             'submissions_received' => $submissionsReceived,
             'submissions_made' => $submissionsMade,
         ];
