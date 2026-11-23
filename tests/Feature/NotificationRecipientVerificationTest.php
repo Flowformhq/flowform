@@ -10,6 +10,7 @@ use App\Models\NotificationRecipient;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
@@ -209,4 +210,104 @@ test('form edit page renders recipient verification statuses', function () {
     Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
         ->assertOk()
         ->assertSee('pending@example.com');
+});
+
+test('resend verification action queues one mail and a second within 10 minutes queues nothing and shows error', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $form = Form::create([
+        'user_id' => $admin->id,
+        'name' => 'Resend Action Form',
+        'slug' => 'resend-action-form',
+        'type' => 'endpoint',
+        'notification_email' => 'pending@example.com',
+        'is_active' => true,
+    ]);
+
+    $recipient = $form->recipients()->where('email', 'pending@example.com')->first();
+    expect($recipient->isVerified())->toBeFalse();
+
+    Mail::fake();
+
+    $this->actingAs($admin);
+
+    // 1. First resend queues one verification mail
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->assertActionVisible("resend_verification_{$recipient->id}")
+        ->callAction("resend_verification_{$recipient->id}")
+        ->assertNotified();
+
+    Mail::assertQueued(VerifyNotificationRecipient::class, 1);
+    Mail::assertQueued(VerifyNotificationRecipient::class, fn ($m) => $m->hasTo('pending@example.com'));
+
+    // Clear mail queue
+    Mail::fake();
+
+    // 2. Second resend within 10 minutes queues nothing and shows an error
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->callAction("resend_verification_{$recipient->id}")
+        ->assertNotified('Rate limit exceeded');
+
+    Mail::assertNotQueued(VerifyNotificationRecipient::class);
+    Mail::assertNothingOutgoing();
+});
+
+test('verified recipients do not show the resend verification action', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $form = Form::create([
+        'user_id' => $admin->id,
+        'name' => 'Verified Form',
+        'slug' => 'verified-form',
+        'type' => 'endpoint',
+        'notification_email' => 'confirmed@example.com',
+        'is_active' => true,
+    ]);
+
+    $recipient = $form->recipients()->where('email', 'confirmed@example.com')->first();
+    $recipient->markAsVerified();
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->assertActionDoesNotExist("resend_verification_{$recipient->id}");
+});
+
+test('resend verification action enforces maximum 5 resends per day', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $form = Form::create([
+        'user_id' => $admin->id,
+        'name' => 'Daily Limit Form',
+        'slug' => 'daily-limit-form',
+        'type' => 'endpoint',
+        'notification_email' => 'daily@example.com',
+        'is_active' => true,
+    ]);
+
+    $recipient = $form->recipients()->where('email', 'daily@example.com')->first();
+
+    Mail::fake();
+    $this->actingAs($admin);
+
+    $key10m = "resend_verification_10m:{$recipient->id}";
+
+    // Execute 5 resends, clearing the 10-minute window in between
+    for ($i = 1; $i <= 5; $i++) {
+        RateLimiter::clear($key10m);
+
+        Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+            ->callAction("resend_verification_{$recipient->id}")
+            ->assertNotified();
+    }
+
+    Mail::assertQueued(VerifyNotificationRecipient::class, 5);
+
+    Mail::fake();
+    RateLimiter::clear($key10m);
+
+    // 6th resend within the same day must be blocked by the daily limit
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->callAction("resend_verification_{$recipient->id}")
+        ->assertNotified('Rate limit exceeded');
+
+    Mail::assertNotQueued(VerifyNotificationRecipient::class);
+    Mail::assertNothingOutgoing();
 });

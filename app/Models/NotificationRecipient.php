@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Mail\VerifyNotificationRecipient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 
 class NotificationRecipient extends Model
 {
@@ -37,5 +40,26 @@ class NotificationRecipient extends Model
         return $this->update([
             'verified_at' => now(),
         ]);
+    }
+
+    public function resendVerification(): bool
+    {
+        if ($this->isVerified()) {
+            return false;
+        }
+
+        $key10m = "resend_verification_10m:{$this->id}";
+        $keyDaily = "resend_verification_daily:{$this->id}";
+
+        if (RateLimiter::tooManyAttempts($key10m, 1) || RateLimiter::tooManyAttempts($keyDaily, 5)) {
+            return false;
+        }
+
+        RateLimiter::hit($key10m, 600);
+        RateLimiter::hit($keyDaily, 86400);
+
+        Mail::to($this->email)->send(new VerifyNotificationRecipient($this));
+
+        return true;
     }
 }
