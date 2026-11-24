@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\DispatchFormWebhook;
+use App\Jobs\SendChatNotification;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
@@ -190,7 +191,16 @@ class PublicEndpointController extends Controller
             }
         }
 
-        // 8. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
+        // 8. Dispatch Chat Notification Channels (Slack, Discord, Telegram)
+        foreach ($form->notificationChannels()->where('is_active', true)->get() as $channel) {
+            try {
+                SendChatNotification::dispatch($channel, $submission);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // 9. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
         if (config('flowform.metering.enabled', false)) {
             $form->user?->deductCredits($hasEmail);
         }

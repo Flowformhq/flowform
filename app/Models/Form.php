@@ -79,6 +79,14 @@ class Form extends Model
         return $this->hasMany(NotificationRecipient::class);
     }
 
+    /**
+     * @return HasMany<NotificationChannel, $this>
+     */
+    public function notificationChannels(): HasMany
+    {
+        return $this->hasMany(NotificationChannel::class);
+    }
+
     public function syncNotificationRecipients(): void
     {
         if (empty($this->notification_email)) {
