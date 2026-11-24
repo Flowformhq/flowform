@@ -31,7 +31,7 @@
                         </span>
                     </h2>
                     <p class="text-xs text-slate-400 mt-1">
-                        Configure outbound SMTP relays or direct APIs for submission notifications, auto-responders, and engine alerts.
+                        Configure outbound SMTP relays for submission notifications, auto-responders, and engine alerts.
                     </p>
                 </div>
 
@@ -142,77 +142,6 @@
                                         </svg>
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    @endif
-
-                    @if($this->driver === 'ses')
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-300 mb-1.5">AWS Access Key ID</label>
-                                <input type="text"
-                                       wire:model="username"
-                                       placeholder="AKIAIOSFODNN7EXAMPLE"
-                                       class="w-full rounded-lg border border-slate-700 bg-slate-900/80 text-sm text-slate-100 placeholder-slate-500 px-3 py-2.5 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 font-mono text-xs" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-300 mb-1.5">AWS Secret Access Key</label>
-                                <div class="relative">
-                                    <input type="{{ $this->showPassword ? 'text' : 'password' }}"
-                                           wire:model="password"
-                                           placeholder="••••••••••••"
-                                           class="w-full rounded-lg border border-slate-700 bg-slate-900/80 text-sm text-slate-100 placeholder-slate-500 px-3 py-2.5 pr-10 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 font-mono text-xs" />
-                                    <button type="button"
-                                            wire:click="toggleShowPassword"
-                                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            @if($this->showPassword)
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
-                                            @else
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                            @endif
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-300 mb-1.5">AWS Region</label>
-                                <select wire:model="region"
-                                        class="w-full rounded-lg border border-slate-700 bg-slate-900/80 text-sm text-slate-100 px-3 py-2.5 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 font-mono text-xs">
-                                    <option value="us-east-1">US East (N. Virginia) — us-east-1</option>
-                                    <option value="us-east-2">US East (Ohio) — us-east-2</option>
-                                    <option value="us-west-2">US West (Oregon) — us-west-2</option>
-                                    <option value="eu-west-1">EU (Ireland) — eu-west-1</option>
-                                    <option value="eu-central-1">EU (Frankfurt) — eu-central-1</option>
-                                    <option value="ap-southeast-1">Asia Pacific (Singapore) — ap-southeast-1</option>
-                                </select>
-                            </div>
-                        </div>
-                    @endif
-
-                    @if($this->driver === 'resend' || $this->driver === 'postmark')
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1.5">
-                                {{ $this->driver === 'resend' ? 'Resend API Key' : 'Postmark Server API Token' }}
-                            </label>
-                            <div class="relative">
-                                <input type="{{ $this->showApiKey ? 'text' : 'password' }}"
-                                       wire:model="api_key"
-                                       placeholder="{{ $this->driver === 'resend' ? 're_123456789...' : 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }}"
-                                       class="w-full rounded-lg border border-slate-700 bg-slate-900/80 text-sm text-slate-100 placeholder-slate-500 px-3 py-2.5 pr-10 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 font-mono text-xs" />
-                                <button type="button"
-                                        wire:click="toggleShowApiKey"
-                                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-400 transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        @if($this->showApiKey)
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
-                                        @else
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        @endif
-                                    </svg>
-                                </button>
                             </div>
                         </div>
                     @endif
