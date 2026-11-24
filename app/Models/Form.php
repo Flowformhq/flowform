@@ -33,12 +33,14 @@ class Form extends Model
         'captcha_provider',
         'captcha_secret',
         'captcha_site_key',
+        'endpoint_secret_required',
         'is_active',
         'version',
     ];
 
     protected $hidden = [
         'captcha_secret',
+        'endpoint_secret_hash',
     ];
 
     protected $casts = [
@@ -46,6 +48,7 @@ class Form extends Model
         'is_encrypted' => 'boolean',
         'encrypted_fields' => 'array',
         'captcha_secret' => 'encrypted',
+        'endpoint_secret_required' => 'boolean',
     ];
 
     protected $attributes = [
@@ -189,6 +192,39 @@ class Form extends Model
     public function hasCaptcha(): bool
     {
         return ! empty($this->captcha_provider);
+    }
+
+    public function hasEndpointSecret(): bool
+    {
+        return ! empty($this->endpoint_secret_hash);
+    }
+
+    public function generateEndpointSecret(): string
+    {
+        $plaintext = Str::random(40);
+
+        $this->forceFill([
+            'endpoint_secret_hash' => hash('sha256', $plaintext),
+        ])->save();
+
+        return $plaintext;
+    }
+
+    public function removeEndpointSecret(): void
+    {
+        $this->forceFill([
+            'endpoint_secret_hash' => null,
+            'endpoint_secret_required' => false,
+        ])->save();
+    }
+
+    public function verifyEndpointSecret(?string $secret): bool
+    {
+        if (empty($secret) || empty($this->endpoint_secret_hash)) {
+            return false;
+        }
+
+        return hash_equals($this->endpoint_secret_hash, hash('sha256', $secret));
     }
 
     public function verifyCaptcha(?string $token, ?string $remoteIp = null): bool
