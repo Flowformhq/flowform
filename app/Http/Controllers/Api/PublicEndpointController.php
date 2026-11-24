@@ -40,13 +40,35 @@ class PublicEndpointController extends Controller
             ], 404)->header('Access-Control-Allow-Origin', '*');
         }
 
-        // 2. Check Allowed Domain / Origin
-        $origin = $request->header('origin') ?: $request->header('referer');
-        if (! $form->isAllowedOrigin($origin)) {
+        // 2. Endpoint Server-to-Server Secret Check (skips origin + captcha when valid)
+        $rawSecret = $request->header('X-FlowForm-Secret') ?? $request->query('_secret');
+        $hasValidSecret = false;
+
+        if ($rawSecret !== null && $rawSecret !== '') {
+            if (! is_string($rawSecret) || ! $form->verifyEndpointSecret($rawSecret)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Invalid endpoint secret.',
+                ], 403)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            $hasValidSecret = true;
+        } elseif ($form->endpoint_secret_required) {
             return response()->json([
                 'success' => false,
-                'error' => 'Submissions are not permitted from this domain origin.',
+                'error' => 'Endpoint secret is required.',
             ], 403)->header('Access-Control-Allow-Origin', '*');
+        }
+
+        // 2b. Check Allowed Domain / Origin
+        if (! $hasValidSecret) {
+            $origin = $request->header('origin') ?: $request->header('referer');
+            if (! $form->isAllowedOrigin($origin)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Submissions are not permitted from this domain origin.',
+                ], 403)->header('Access-Control-Allow-Origin', '*');
+            }
         }
 
         // 3. Honeypot spam check: silently discard spam submissions
@@ -57,7 +79,7 @@ class PublicEndpointController extends Controller
         }
 
         // 3b. Server-Side Captcha Verification (Cloudflare Turnstile, hCaptcha)
-        if ($form->hasCaptcha()) {
+        if (! $hasValidSecret && $form->hasCaptcha()) {
             $token = match ($form->captcha_provider) {
                 'turnstile' => $request->input('cf-turnstile-response')
                     ?: $request->input('_turnstile')
@@ -136,6 +158,8 @@ class PublicEndpointController extends Controller
             '_redirect',
             '_token',
             '_method',
+            '_secret',
+            '_source',
             'cf-turnstile-response',
             '_turnstile',
             'g-recaptcha-response',
@@ -147,6 +171,17 @@ class PublicEndpointController extends Controller
             ->merge($uploadedFilesData)
             ->all();
 
+        $meta = [
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'referer' => $request->header('referer'),
+        ];
+
+        $rawSource = $request->query('_source') ?? $request->input('_source');
+        if (is_string($rawSource) && preg_match('/^[a-z0-9-]{1,64}$/', $rawSource) === 1) {
+            $meta['source'] = $rawSource;
+        }
+
         $submission = new Submission([
             'form_id' => $form->id,
             'uuid' => $submissionUuid,
@@ -154,11 +189,7 @@ class PublicEndpointController extends Controller
             'is_encrypted' => (bool) $form->is_encrypted,
             'current_step' => 1,
             'data' => $data,
-            'meta' => [
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'referer' => $request->header('referer'),
-            ],
+            'meta' => $meta,
         ]);
         $submission->save();
 
