@@ -302,13 +302,18 @@ class PublicEndpointController extends Controller
             return false;
         }
 
+        // Browsers treat "\" as "/" and ignore tabs/newlines, while parse_url does not, so e.g. "https://evil.test\@example.com" would pass the host check yet land on evil.test.
+        if (preg_match('/[\\\\\x00-\x20\x7f]/', $url) === 1) {
+            return false;
+        }
+
         // Safe relative internal path: starts with '/', but not '//' or '/\'
         if (str_starts_with($url, '/') && ! str_starts_with($url, '//') && ! str_starts_with($url, '/\\')) {
             return true;
         }
 
         $parsed = parse_url($url);
-        if (! is_array($parsed) || empty($parsed['host'])) {
+        if (! is_array($parsed) || empty($parsed['host']) || isset($parsed['user']) || isset($parsed['pass'])) {
             return false;
         }
 

@@ -460,7 +460,7 @@ test('unsafe redirect schemes and traversal paths are still rejected when allowe
         'is_active' => true,
     ]);
 
-    foreach (['javascript:alert(1)', '//evil.test', '/\\evil.test'] as $unsafe) {
+    foreach (['javascript:alert(1)', '//evil.test', '/\\evil.test', 'https://evil.test\\@example.com/', "https://evil.test\t@example.com/", 'https://user:pass@example.com/'] as $unsafe) {
         $this->post('/f/scheme-safety', [
             'name' => 'Visitor',
             '_next' => $unsafe,
