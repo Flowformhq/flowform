@@ -181,7 +181,7 @@ test('Discord: sends embeds payload with title, fields, and timestamp', function
     });
 });
 
-test('Discord: respects 25 fields max and 1024 chars truncation limit', function () {
+test('Discord: caps values at 1024 chars and the whole embed at 6000 chars', function () {
     Http::fake([
         'https://discord.com/*' => Http::response(['id' => '123'], 204),
     ]);
@@ -219,8 +219,13 @@ test('Discord: respects 25 fields max and 1024 chars truncation limit', function
         $body = $request->data();
         $fields = $body['embeds'][0]['fields'] ?? [];
 
-        expect(count($fields))->toBe(25);
+        $total = mb_strlen($body['embeds'][0]['title'])
+            + array_sum(array_map(fn ($f) => mb_strlen($f['name']) + mb_strlen($f['value']), $fields));
+
         expect(strlen($fields[0]['value']))->toBe(1024);
+        expect(count($fields))->toBeLessThan(25);
+        expect($total)->toBeLessThanOrEqual(6000);
+        expect($body['allowed_mentions'])->toBe(['parse' => []]);
 
         return true;
     });
@@ -510,5 +515,58 @@ test('Filament: sendTest action successfully triggers test notification', functi
     Http::assertSent(function (Request $request) {
         return $request->url() === 'https://hooks.slack.com/services/T/B/X'
             && str_contains(json_encode($request->data()), 'FlowForm chat integration test');
+    });
+});
+
+test('Slack: escapes control sequences so submitters cannot ping channels or inject links', function () {
+    Http::fake(['https://hooks.slack.com/*' => Http::response(['ok' => true], 200)]);
+
+    $form = Form::create(['name' => 'Slack Escape', 'slug' => 'slack-escape', 'type' => 'endpoint', 'is_active' => true]);
+    $channel = $form->notificationChannels()->create([
+        'type' => NotificationChannel::TYPE_SLACK,
+        'config' => ['webhook_url' => 'https://hooks.slack.com/services/T00/B00/X00'],
+        'is_active' => true,
+    ]);
+    $submission = Submission::create([
+        'form_id' => $form->id,
+        'status' => 'completed',
+        'data' => ['message' => '<!channel> see <https://evil.example|invoice> & pay'],
+    ]);
+
+    (new SendChatNotification($channel, $submission))->handle();
+
+    Http::assertSent(function (Request $request) {
+        $text = $request->data()['blocks'][1]['fields'][0]['text'];
+
+        return str_contains($text, '&lt;!channel&gt; see &lt;https://evil.example|invoice&gt; &amp; pay')
+            && ! str_contains($text, '<!channel>');
+    });
+});
+
+test('Telegram: long submissions stay under the message limit without cutting HTML tags', function () {
+    Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+    $form = Form::create(['name' => 'Telegram Long', 'slug' => 'telegram-long', 'type' => 'endpoint', 'is_active' => true]);
+    $channel = $form->notificationChannels()->create([
+        'type' => NotificationChannel::TYPE_TELEGRAM,
+        'config' => ['bot_token' => '123456:ABC', 'chat_id' => '42'],
+        'is_active' => true,
+    ]);
+    $data = [];
+    for ($i = 1; $i <= 25; $i++) {
+        $data["field_{$i}"] = str_repeat('<', 400);
+    }
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => $data]);
+
+    (new SendChatNotification($channel, $submission))->handle();
+
+    Http::assertSent(function (Request $request) {
+        $text = $request->data()['text'];
+
+        return mb_strlen($text) <= 4096
+            && substr_count($text, '<b>') === substr_count($text, '</b>')
+            && substr_count($text, '<i>') === substr_count($text, '</i>')
+            && str_contains($text, '(more fields omitted)')
+            && str_ends_with($text, '</i>');
     });
 });

@@ -17,17 +17,12 @@ class SendChatNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Number of retry attempts.
-     */
     public int $tries = 3;
 
-    /**
-     * Retry backoff delays in seconds (10s, 60s, 300s).
-     *
-     * @var array<int, int>
-     */
+    /** @var array<int, int> */
     public array $backoff = [10, 60, 300];
+
+    public bool $deleteWhenMissingModels = true;
 
     public function __construct(
         public NotificationChannel $channel,

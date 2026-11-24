@@ -39,7 +39,7 @@ class SlackFormatter extends BaseChatFormatter
             foreach ($fields as $key => $val) {
                 $fieldElements[] = [
                     'type' => 'mrkdwn',
-                    'text' => "*{$key}:*\n{$val}",
+                    'text' => '*'.$this->escape((string) $key).":*\n".$this->escape($val),
                 ];
             }
 
@@ -68,5 +68,10 @@ class SlackFormatter extends BaseChatFormatter
                 'blocks' => $blocks,
             ],
         ];
+    }
+
+    private function escape(string $text): string
+    {
+        return str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $text);
     }
 }

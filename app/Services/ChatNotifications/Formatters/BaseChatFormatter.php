@@ -72,13 +72,12 @@ abstract class BaseChatFormatter implements ChatFormatter
             Log::warning('FlowForm Chat Notification rejected for host', [
                 'channel_id' => $channel->id,
                 'type' => $channel->type,
-                'url' => $url,
             ]);
 
             return false;
         }
 
-        $response = Http::timeout(10)->post($url, $payload);
+        $response = Http::timeout(10)->withoutRedirecting()->post($url, $payload);
 
         if (! $response->successful()) {
             Log::error('FlowForm Chat Notification HTTP request failed', [

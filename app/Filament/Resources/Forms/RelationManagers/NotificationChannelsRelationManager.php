@@ -70,6 +70,7 @@ class NotificationChannelsRelationManager extends RelationManager
                     ->password()
                     ->revealable()
                     ->placeholder('123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ')
+                    ->regex('/^\d+:[A-Za-z0-9_-]+$/')
                     ->visible(fn (callable $get): bool => $get('type') === NotificationChannel::TYPE_TELEGRAM)
                     ->required(fn (callable $get): bool => $get('type') === NotificationChannel::TYPE_TELEGRAM),
 
@@ -117,9 +118,7 @@ class NotificationChannelsRelationManager extends RelationManager
                             return '—';
                         }
 
-                        $host = parse_url($url, PHP_URL_HOST) ?? '';
-
-                        return Str::limit($host.(parse_url($url, PHP_URL_PATH) ?? ''), 35);
+                        return (string) parse_url($url, PHP_URL_HOST);
                     }),
 
                 TextColumn::make('is_active')

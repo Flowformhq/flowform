@@ -9,6 +9,8 @@ use App\Models\Submission;
 
 class TelegramFormatter extends BaseChatFormatter
 {
+    private const MESSAGE_CHAR_LIMIT = 4000;
+
     public function format(NotificationChannel $channel, Submission $submission): array
     {
         $form = $submission->relationLoaded('form') ? $submission->form : ($channel->form ?? $submission->form);
@@ -18,19 +20,26 @@ class TelegramFormatter extends BaseChatFormatter
         $lines = [];
         $lines[] = '<b>New Submission: '.htmlspecialchars($formName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b>';
         $lines[] = '';
+        $footer = "\n<i>Submission: ".htmlspecialchars($submission->uuid, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</i>';
 
         if (empty($fields)) {
             $lines[] = '<i>No form fields submitted.</i>';
-        } else {
-            foreach ($fields as $key => $val) {
-                $safeKey = htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                $safeVal = htmlspecialchars((string) $val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                $lines[] = "<b>{$safeKey}:</b> {$safeVal}";
-            }
         }
 
-        $lines[] = '';
-        $lines[] = '<i>Submission: '.htmlspecialchars($submission->uuid, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</i>';
+        foreach ($fields as $key => $val) {
+            $safeKey = htmlspecialchars((string) $key, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $safeVal = htmlspecialchars((string) $val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $line = "<b>{$safeKey}:</b> {$safeVal}";
+
+            if (mb_strlen(implode("\n", [...$lines, $line]).$footer) > self::MESSAGE_CHAR_LIMIT) {
+                $lines[] = '<i>(more fields omitted)</i>';
+                break;
+            }
+
+            $lines[] = $line;
+        }
+
+        $lines[] = $footer;
 
         $token = (string) ($channel->config['bot_token'] ?? '');
         $chatId = $channel->config['chat_id'] ?? '';
@@ -40,7 +49,7 @@ class TelegramFormatter extends BaseChatFormatter
             'payload' => [
                 'chat_id' => $chatId,
                 'parse_mode' => 'HTML',
-                'text' => mb_substr(implode("\n", $lines), 0, 4096),
+                'text' => implode("\n", $lines),
             ],
         ];
     }
