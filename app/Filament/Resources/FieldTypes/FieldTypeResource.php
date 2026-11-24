@@ -26,6 +26,11 @@ class FieldTypeResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    public static function canAccess(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return FieldTypeForm::configure($schema);

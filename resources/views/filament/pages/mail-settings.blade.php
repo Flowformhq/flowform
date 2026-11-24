@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     @php
-        $isDemo = str_contains(request()->getHost(), 'demo') || request()->has('demo');
+        $isDemo = $this->isDemo();
     @endphp
 
     <div class="space-y-6 max-w-5xl">
@@ -45,80 +45,42 @@
                 <!-- Provider Selector Grid -->
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-3">
-                        Select Mail Protocol / Provider
+                        Select Mail Protocol / Provider Preset
                     </label>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                        <!-- SMTP -->
-                        <button type="button"
-                                wire:click="selectDriver('smtp')"
-                                class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $this->driver === 'smtp' ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
-                            <div class="flex items-center justify-between w-full mb-2">
-                                <svg class="w-5 h-5 {{ $this->driver === 'smtp' ? 'text-cyan-400' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
-                                </svg>
-                                <span class="h-2 w-2 rounded-full {{ $this->driver === 'smtp' ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
-                            </div>
-                            <span class="text-xs font-semibold text-white">Custom SMTP</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">Hostinger, cPanel, Mailtrap</span>
-                        </button>
-
-                        <!-- Amazon SES -->
-                        <button type="button"
-                                wire:click="selectDriver('ses')"
-                                class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $this->driver === 'ses' ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
-                            <div class="flex items-center justify-between w-full mb-2">
-                                <svg class="w-5 h-5 {{ $this->driver === 'ses' ? 'text-cyan-400' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
-                                </svg>
-                                <span class="h-2 w-2 rounded-full {{ $this->driver === 'ses' ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
-                            </div>
-                            <span class="text-xs font-semibold text-white">Amazon SES</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">High volume, AWS cloud</span>
-                        </button>
-
-                        <!-- Resend -->
-                        <button type="button"
-                                wire:click="selectDriver('resend')"
-                                class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $this->driver === 'resend' ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
-                            <div class="flex items-center justify-between w-full mb-2">
-                                <svg class="w-5 h-5 {{ $this->driver === 'resend' ? 'text-cyan-400' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                </svg>
-                                <span class="h-2 w-2 rounded-full {{ $this->driver === 'resend' ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
-                            </div>
-                            <span class="text-xs font-semibold text-white">Resend</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">Developer REST API</span>
-                        </button>
-
-                        <!-- Postmark -->
-                        <button type="button"
-                                wire:click="selectDriver('postmark')"
-                                class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $this->driver === 'postmark' ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
-                            <div class="flex items-center justify-between w-full mb-2">
-                                <svg class="w-5 h-5 {{ $this->driver === 'postmark' ? 'text-cyan-400' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                <span class="h-2 w-2 rounded-full {{ $this->driver === 'postmark' ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
-                            </div>
-                            <span class="text-xs font-semibold text-white">Postmark</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">Strict inbox deliverability</span>
-                        </button>
-
-                        <!-- Local Log -->
-                        <button type="button"
-                                wire:click="selectDriver('log')"
-                                class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $this->driver === 'log' ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
-                            <div class="flex items-center justify-between w-full mb-2">
-                                <svg class="w-5 h-5 {{ $this->driver === 'log' ? 'text-cyan-400' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                                <span class="h-2 w-2 rounded-full {{ $this->driver === 'log' ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
-                            </div>
-                            <span class="text-xs font-semibold text-white">Local Log</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">Offline mock testing</span>
-                        </button>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
+                        @foreach(\App\Filament\Pages\MailSettingsPage::PRESETS as $key => $presetData)
+                            @php
+                                $isSelected = ($this->preset === $key) || (empty($this->preset) && $this->driver === $presetData['driver']);
+                            @endphp
+                            <button type="button"
+                                    wire:click="selectPreset('{{ $key }}')"
+                                    class="flex flex-col items-start p-3.5 rounded-xl border text-left transition-all duration-150 {{ $isSelected ? 'border-cyan-500 bg-cyan-950/20 shadow-sm shadow-cyan-500/10 ring-1 ring-cyan-500/50' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-slate-700' }}">
+                                <div class="flex items-center justify-between w-full mb-2">
+                                    <span class="text-xs font-semibold text-white">{{ $presetData['name'] }}</span>
+                                    <span class="h-2 w-2 rounded-full {{ $isSelected ? 'bg-cyan-400' : 'bg-transparent' }}"></span>
+                                </div>
+                                <span class="text-[11px] text-slate-400 uppercase font-mono">{{ $presetData['driver'] }}</span>
+                            </button>
+                        @endforeach
                     </div>
+
+                    @if(!empty($this->preset) && isset(\App\Filament\Pages\MailSettingsPage::PRESETS[$this->preset]))
+                        @php
+                            $activePreset = \App\Filament\Pages\MailSettingsPage::PRESETS[$this->preset];
+                        @endphp
+                        <div class="mt-3 text-xs text-slate-300 bg-slate-900/60 p-3 rounded-lg border border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <span>{{ $activePreset['hint'] }}</span>
+                            @if(!empty($activePreset['url']))
+                                <a href="{{ $activePreset['url'] }}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 font-medium underline shrink-0">
+                                    <span>Get credentials</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                    </svg>
+                                </a>
+                            @endif
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Provider Fields -->

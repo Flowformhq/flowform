@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\FieldStateResource;
 use App\Http\Resources\Api\SubmissionDetailResource;
 use App\Http\Resources\Api\SubmissionResource;
+use App\Models\AuditLog;
 use App\Models\Field;
 use App\Models\Form;
 use App\Models\Submission;
@@ -39,7 +40,11 @@ class SubmissionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'form_uuid' => ['required', 'string', Rule::exists('forms', 'uuid')],
+            'form_uuid' => [
+                'required',
+                'string',
+                Rule::exists('forms', 'uuid')->where('is_active', true),
+            ],
         ]);
 
         $form = Form::where('uuid', $data['form_uuid'])->firstOrFail();
@@ -74,7 +79,7 @@ class SubmissionController extends Controller
         $submission->load(['form', 'values.field']);
 
         if ($submission->is_encrypted) {
-            \App\Models\AuditLog::record(
+            AuditLog::record(
                 action: 'submission.decrypted',
                 auditable: $submission,
                 details: ['form_uuid' => $submission->form?->uuid, 'status' => $submission->status],
@@ -103,6 +108,7 @@ class SubmissionController extends Controller
     public function update(string $uuid, Request $request): SubmissionResource
     {
         $submission = $this->resolveSubmission($uuid, $request);
+        $this->ensureActiveFormForPublic($submission, $request);
 
         $data = $request->validate([
             'status' => ['sometimes', 'string', Rule::in(['draft', 'completed', 'abandoned'])],
@@ -134,6 +140,7 @@ class SubmissionController extends Controller
     public function storeValues(string $uuid, Request $request): SubmissionDetailResource
     {
         $submission = $this->resolveSubmission($uuid, $request);
+        $this->ensureActiveFormForPublic($submission, $request);
 
         $data = $request->validate([
             'values' => ['required', 'array'],
@@ -177,6 +184,7 @@ class SubmissionController extends Controller
     public function advance(string $uuid, Request $request): JsonResponse
     {
         $submission = $this->resolveSubmission($uuid, $request);
+        $this->ensureActiveFormForPublic($submission, $request);
 
         if (! $submission->advanceStep()) {
             return response()->json(['message' => 'Already on the last step.'], 422);
@@ -200,6 +208,7 @@ class SubmissionController extends Controller
     public function retreat(string $uuid, Request $request): JsonResponse
     {
         $submission = $this->resolveSubmission($uuid, $request);
+        $this->ensureActiveFormForPublic($submission, $request);
 
         if (! $submission->retreatStep()) {
             return response()->json(['message' => 'Already on the first step.'], 422);
@@ -261,5 +270,12 @@ class SubmissionController extends Controller
         }
 
         return $query->firstOrFail();
+    }
+
+    protected function ensureActiveFormForPublic(Submission $submission, Request $request): void
+    {
+        if (! $request->user() && ! $submission->form->is_active) {
+            abort(422, 'This form is currently inactive.');
+        }
     }
 }

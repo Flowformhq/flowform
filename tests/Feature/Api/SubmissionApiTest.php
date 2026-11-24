@@ -268,3 +268,89 @@ test('cross-user tenancy authorization: User B receives 404 when attempting to a
         ->assertOk()
         ->assertJsonPath('data.uuid', $submissionA->uuid);
 });
+
+test('POST /api/v1/public/submissions returns 422 when form is inactive', function () {
+    $form = Form::create(['name' => 'Inactive Form', 'is_active' => false]);
+    Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+
+    $this->postJson('/api/v1/public/submissions', ['form_uuid' => $form->uuid])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['form_uuid']);
+});
+
+test('guest mutating routes on public submissions return 422 when form is inactive', function () {
+    $form = Form::create(['name' => 'Deactivating Form', 'is_active' => true]);
+    $step1 = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+    $step2 = Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id, 'step_id' => $step1->id,
+        'field_type_id' => $ft->id, 'code' => 'answer', 'label' => 'Answer', 'order' => 1,
+    ]);
+
+    $submission = Submission::create([
+        'form_id' => $form->id,
+        'status' => 'draft',
+        'current_step' => 1,
+    ]);
+
+    // Deactivate the form
+    $form->update(['is_active' => false]);
+
+    // 1. Guest POST public/submissions/{uuid}/values returns 422
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'answer', 'value' => 'New Answer']],
+    ])->assertStatus(422);
+
+    // 2. Guest POST public/submissions/{uuid}/advance returns 422
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/advance")
+        ->assertStatus(422);
+
+    // 3. Guest PATCH public/submissions/{uuid} returns 422
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", [
+        'status' => 'completed',
+    ])->assertStatus(422);
+});
+
+test('authenticated owner can still update a draft whose form is inactive via authenticated route', function () {
+    $user = User::factory()->create();
+    $form = Form::create([
+        'user_id' => $user->id,
+        'name' => 'Owner Inactive Form',
+        'is_active' => false,
+    ]);
+    $step1 = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+    $step2 = Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id, 'step_id' => $step1->id,
+        'field_type_id' => $ft->id, 'code' => 'note', 'label' => 'Note', 'order' => 1,
+    ]);
+
+    $submission = Submission::create([
+        'form_id' => $form->id,
+        'user_id' => $user->id,
+        'status' => 'draft',
+        'current_step' => 1,
+    ]);
+
+    // Owner can update status via authenticated route
+    $this->actingAs($user, 'sanctum')
+        ->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'completed'])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'completed');
+
+    // Owner can store values via authenticated route
+    $this->actingAs($user, 'sanctum')
+        ->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+            'values' => [['field_code' => 'note', 'value' => 'Admin override']],
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.values.note', 'Admin override');
+
+    // Owner can advance step via authenticated route
+    $this->actingAs($user, 'sanctum')
+        ->postJson("/api/v1/submissions/{$submission->uuid}/advance")
+        ->assertOk()
+        ->assertJsonPath('current_step', 2);
+});

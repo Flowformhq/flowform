@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\DispatchFormWebhook;
+use App\Jobs\SendChatNotification;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class PublicEndpointController extends Controller
 {
@@ -50,21 +56,100 @@ class PublicEndpointController extends Controller
             return $this->respondSuccess($request, $form, null);
         }
 
-        // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
-        $hasEmail = ! empty($form->notification_email);
-        if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Submission quota or credits exhausted for this form endpoint. Top up pay-as-you-go credits for as low as $1 at https://flowformhq.com.',
-            ], 429)->header('Access-Control-Allow-Origin', '*');
+        // 3b. Server-Side Captcha Verification (Cloudflare Turnstile, hCaptcha)
+        if ($form->hasCaptcha()) {
+            $token = match ($form->captcha_provider) {
+                'turnstile' => $request->input('cf-turnstile-response')
+                    ?: $request->input('_turnstile')
+                    ?: $request->input('g-recaptcha-response'),
+                'hcaptcha' => $request->input('h-captcha-response')
+                    ?: $request->input('_hcaptcha'),
+                default => null,
+            };
+
+            if (empty($token)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification token missing.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            if (! $form->verifyCaptcha($token, $request->ip())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Captcha verification failed.',
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
         }
 
+        // 4. Quota & Pay-As-You-Go Credits Check for Form Owner
+        $hasEmail = ! empty($form->notification_email);
+        if (config('flowform.metering.enabled', false)) {
+            if ($form->user && ! $form->user->canReceiveSubmissions($hasEmail)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Submission quota or credits exhausted for this form endpoint. Top up pay-as-you-go credits for as low as $1 at https://flowformhq.com.',
+                ], 429)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
+        $files = $request->allFiles();
+        $fileCount = count(Arr::flatten($files));
+
+        if ($fileCount > 0) {
+            $maxFiles = (int) config('flowform.uploads.max_files');
+            if ($fileCount > $maxFiles) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "The maximum number of allowed files is {$maxFiles}.",
+                    'errors' => ['files' => ["The maximum number of allowed files is {$maxFiles}."]],
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+
+            $allowed = implode(',', (array) config('flowform.uploads.allowed_mimes'));
+            $fileRules = ['file', 'max:'.(int) config('flowform.uploads.max_kb'), 'mimes:'.$allowed, 'extensions:'.$allowed];
+            $validator = Validator::make($files, collect($files)
+                ->mapWithKeys(fn ($value, $field) => [(is_array($value) ? "{$field}.*" : $field) => $fileRules])
+                ->all());
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'File upload validation failed.',
+                    'errors' => $validator->errors()->toArray(),
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
+        $submissionUuid = Str::uuid()->toString();
+        $uploadedFilesData = collect($files)
+            ->map(fn ($value) => is_array($value)
+                ? array_map(fn (UploadedFile $file) => $this->storeUpload($file, $submissionUuid), $value)
+                : $this->storeUpload($value, $submissionUuid))
+            ->all();
+
         // 5. Clean and Store Payload (with Field-Level AES-256 Encryption if enabled)
-        $reservedKeys = ['_gotcha', '_honeypot', '_next', '_redirect', '_token', '_method'];
-        $data = collect($request->all())->except($reservedKeys)->all();
+        $reservedKeys = [
+            '_gotcha',
+            '_honeypot',
+            '_next',
+            '_redirect',
+            '_token',
+            '_method',
+            'cf-turnstile-response',
+            '_turnstile',
+            'g-recaptcha-response',
+            'h-captcha-response',
+            '_hcaptcha',
+        ];
+        $data = collect($request->all())
+            ->except($reservedKeys)
+            ->merge($uploadedFilesData)
+            ->all();
 
         $submission = new Submission([
             'form_id' => $form->id,
+            'uuid' => $submissionUuid,
             'status' => 'completed',
             'is_encrypted' => (bool) $form->is_encrypted,
             'current_step' => 1,
@@ -79,10 +164,17 @@ class PublicEndpointController extends Controller
 
         // 6. Dispatch Notification Email (Amazon SES Relay / Custom In-App SMTP)
         if ($hasEmail) {
-            $recipients = array_filter(array_map('trim', explode(',', $form->notification_email)));
+            if ($form->recipients()->count() === 0) {
+                $form->syncNotificationRecipients();
+            }
+
+            $recipients = $form->recipients()
+                ->whereNotNull('verified_at')
+                ->pluck('email')
+                ->all();
+
             if (! empty($recipients)) {
                 try {
-                    \App\Models\MailSetting::applyActiveConfig();
                     Mail::to($recipients)->send(new SubmissionReceived($form, $submission));
                 } catch (\Throwable $e) {
                     report($e);
@@ -93,16 +185,44 @@ class PublicEndpointController extends Controller
         // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
         if (! empty($form->webhook_url)) {
             try {
-                \App\Jobs\DispatchFormWebhook::dispatch($form, $submission, $data);
+                DispatchFormWebhook::dispatch($form, $submission, $submission->getDataWithSignedUrls());
             } catch (\Throwable $e) {
                 report($e);
             }
         }
 
-        // 8. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
-        $form->user?->deductCredits($hasEmail);
+        // 8. Dispatch Chat Notification Channels (Slack, Discord, Telegram)
+        foreach ($form->notificationChannels()->where('is_active', true)->get() as $channel) {
+            try {
+                SendChatNotification::dispatch($channel, $submission);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        // 9. Deduct Metred Pay-As-You-Go Credits (1 credit for webhook/DB, 5 credits for email relay)
+        if (config('flowform.metering.enabled', false)) {
+            $form->user?->deductCredits($hasEmail);
+        }
 
         return $this->respondSuccess($request, $form, $submission);
+    }
+
+    /** @return array{name: string, size: int, mime: string, path: string} */
+    protected function storeUpload(UploadedFile $file, string $submissionUuid): array
+    {
+        $path = $file->storeAs(
+            "submissions/{$submissionUuid}",
+            Str::random(40).'.'.$file->guessExtension(),
+            ['disk' => config('flowform.uploads.disk')]
+        );
+
+        return [
+            'name' => str_replace(['/', '\\'], '_', $file->getClientOriginalName()),
+            'size' => (int) $file->getSize(),
+            'mime' => (string) $file->getMimeType(),
+            'path' => (string) $path,
+        ];
     }
 
     protected function respondSuccess(Request $request, Form $form, ?Submission $submission): JsonResponse|RedirectResponse
@@ -189,10 +309,10 @@ class PublicEndpointController extends Controller
                 return true;
             }
 
-            // Wildcard matching e.g. *.buildeon.solutions
+            // Wildcard matching e.g. *.example.com
             if (str_starts_with($pattern, '*.')) {
                 $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.' . $rootDomain)) {
+                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
                     return true;
                 }
             }

@@ -2,15 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Jobs\DispatchFormWebhook;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Cache::flush();
     Mail::fake();
+    config(['flowform.allowed_redirect_hosts' => ['example.com', '*.example.com', 'localhost', '127.0.0.1']]);
 });
 
 test('POST /f/{slug} accepts HTML form submission and redirects to _next', function () {
@@ -25,10 +29,10 @@ test('POST /f/{slug} accepts HTML form submission and redirects to _next', funct
         'name' => 'John Doe',
         'email' => 'john@example.com',
         'message' => 'Hello there!',
-        '_next' => 'https://buildeon.solutions/thank-you',
+        '_next' => 'https://example.com/thank-you',
     ]);
 
-    $response->assertRedirect('https://buildeon.solutions/thank-you');
+    $response->assertRedirect('https://example.com/thank-you');
 
     $this->assertDatabaseHas('submissions', [
         'form_id' => $form->id,
@@ -53,10 +57,10 @@ test('POST /f/{slug} redirects to _redirect when provided', function () {
 
     $response = $this->post('/f/inquiry', [
         'name' => 'Alice',
-        '_redirect' => 'https://buildeon.solutions/success',
+        '_redirect' => 'https://example.com/success',
     ]);
 
-    $response->assertRedirect('https://buildeon.solutions/success');
+    $response->assertRedirect('https://example.com/success');
 });
 
 test('POST /f/{slug} falls back to form configured redirect_url', function () {
@@ -64,7 +68,7 @@ test('POST /f/{slug} falls back to form configured redirect_url', function () {
         'name' => 'Demo Request',
         'slug' => 'demo',
         'type' => 'endpoint',
-        'redirect_url' => 'https://buildeon.solutions/booked',
+        'redirect_url' => 'https://example.com/booked',
         'is_active' => true,
     ]);
 
@@ -72,7 +76,7 @@ test('POST /f/{slug} falls back to form configured redirect_url', function () {
         'company' => 'Acme Corp',
     ]);
 
-    $response->assertRedirect('https://buildeon.solutions/booked');
+    $response->assertRedirect('https://example.com/booked');
 });
 
 test('POST /f/{slug} returns JSON when no redirect URL is provided', function () {
@@ -152,9 +156,10 @@ test('honeypot submission via _gotcha is quietly discarded without saving or ema
         'name' => 'Protected Contact',
         'slug' => 'protected-contact',
         'type' => 'endpoint',
-        'notification_email' => 'alerts@buildeon.solutions',
+        'notification_email' => 'alerts@example.com',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-contact', [
         'name' => 'Spam Bot',
@@ -178,9 +183,10 @@ test('honeypot submission via _honeypot is quietly discarded', function () {
         'name' => 'Protected Form',
         'slug' => 'protected-form',
         'type' => 'endpoint',
-        'notification_email' => 'alerts@buildeon.solutions',
+        'notification_email' => 'alerts@example.com',
         'is_active' => true,
     ]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/protected-form', [
         'name' => 'Spam Bot 2',
@@ -198,9 +204,11 @@ test('successful submission dispatches SubmissionReceived email to configured no
         'name' => 'Client Leads',
         'slug' => 'leads',
         'type' => 'endpoint',
-        'notification_email' => 'sales@buildeon.solutions',
+        'notification_email' => 'sales@example.com',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $response = $this->postJson('/api/v1/f/leads', [
         'full_name' => 'Jane Smith',
@@ -210,7 +218,7 @@ test('successful submission dispatches SubmissionReceived email to configured no
     $response->assertOk();
 
     Mail::assertQueued(SubmissionReceived::class, function ($mail) {
-        return $mail->hasTo('sales@buildeon.solutions')
+        return $mail->hasTo('sales@example.com')
             && $mail->form->slug === 'leads'
             && $mail->submission->data['full_name'] === 'Jane Smith';
     });
@@ -221,15 +229,17 @@ test('supports comma-separated multiple notification emails', function () {
         'name' => 'Partnership',
         'slug' => 'partners',
         'type' => 'endpoint',
-        'notification_email' => 'w@buildeon.solutions, sales@buildeon.solutions',
+        'notification_email' => 'w@example.com, sales@example.com',
         'is_active' => true,
     ]);
+    $form->recipients()->update(['verified_at' => now()]);
+    Mail::fake();
 
     $this->postJson('/api/v1/f/partners', ['company' => 'Partner Co'])->assertOk();
 
     Mail::assertQueued(SubmissionReceived::class, function ($mail) {
-        return $mail->hasTo('w@buildeon.solutions')
-            && $mail->hasTo('sales@buildeon.solutions');
+        return $mail->hasTo('w@example.com')
+            && $mail->hasTo('sales@example.com');
     });
 });
 
@@ -284,11 +294,11 @@ test('reserved meta keys are excluded from submission data', function () {
         'comment' => 'Great work',
         '_gotcha' => '',
         '_honeypot' => '',
-        '_next' => 'https://buildeon.solutions/thanks',
-        '_redirect' => 'https://buildeon.solutions/thanks',
+        '_next' => 'https://example.com/thanks',
+        '_redirect' => 'https://example.com/thanks',
         '_token' => 'csrf-sample-token',
         '_method' => 'POST',
-    ])->assertRedirect('https://buildeon.solutions/thanks');
+    ])->assertRedirect('https://example.com/thanks');
 
     $submission = Submission::where('form_id', $form->id)->first();
     expect($submission->data)->toEqual([
@@ -322,7 +332,7 @@ test('disallowed external domain in _next falls back to form redirect_url', func
         'name' => 'Safe Fallback',
         'slug' => 'safe-fallback',
         'type' => 'endpoint',
-        'redirect_url' => 'https://buildeon.solutions/safe-fallback',
+        'redirect_url' => 'https://example.com/safe-fallback',
         'is_active' => true,
     ]);
 
@@ -331,7 +341,7 @@ test('disallowed external domain in _next falls back to form redirect_url', func
         '_next' => 'https://evil.com/phishing',
     ]);
 
-    $response->assertRedirect('https://buildeon.solutions/safe-fallback');
+    $response->assertRedirect('https://example.com/safe-fallback');
 });
 
 test('relative internal path in _next is accepted for redirect', function () {
@@ -377,10 +387,10 @@ test('subdomain matching wildcard host in _next is accepted', function () {
 
     $response = $this->post('/f/subdomain-form', [
         'name' => 'User',
-        '_next' => 'https://staging.buildeon.solutions/work-with-us/?submitted=true',
+        '_next' => 'https://staging.example.com/work-with-us/?submitted=true',
     ]);
 
-    $response->assertRedirect('https://staging.buildeon.solutions/work-with-us/?submitted=true');
+    $response->assertRedirect('https://staging.example.com/work-with-us/?submitted=true');
 });
 
 test('public endpoint submissions are throttled to 10 requests per minute', function () {
@@ -426,7 +436,7 @@ test('POST /f/{slug} encrypts submission data when form has is_encrypted=true', 
     expect($submission->data['ssn'])->toEqual('123-45-6789');
 
     // Raw database column is encrypted ciphertext (does not contain plaintext)
-    $rawDbData = \Illuminate\Support\Facades\DB::table('submissions')
+    $rawDbData = DB::table('submissions')
         ->where('id', $submission->id)
         ->value('data');
     expect($rawDbData)->not->toContain('Jane Doe');
@@ -434,7 +444,7 @@ test('POST /f/{slug} encrypts submission data when form has is_encrypted=true', 
 });
 
 test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', function () {
-    \Illuminate\Support\Facades\Queue::fake();
+    Queue::fake();
 
     $form = Form::create([
         'name' => 'Webhook Form',
@@ -451,8 +461,33 @@ test('POST /f/{slug} dispatches signed webhook with HMAC SHA-256 header', functi
 
     $response->assertOk();
 
-    \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\DispatchFormWebhook::class, function ($job) use ($form) {
+    Queue::assertPushed(DispatchFormWebhook::class, function ($job) use ($form) {
         return $job->form->id === $form->id && $job->payload['lead_name'] === 'John Agency';
     });
 });
 
+test('POST /f/{slug} stores _replyto so the queued notification can use it as Reply-To', function () {
+    $form = Form::create([
+        'name' => 'Reply To Form',
+        'slug' => 'reply-to-form',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $response = $this->post('/f/reply-to-form', [
+        'name' => 'Charlie',
+        'email' => 'charlie@example.com',
+        '_replyto' => 'charlie-alt@example.com',
+        'message' => 'Testing reply-to',
+    ]);
+
+    $response->assertOk();
+
+    $submission = Submission::where('form_id', $form->id)->first();
+    expect($submission)->not->toBeNull();
+    expect($submission->data)->toHaveKey('email');
+    expect($submission->data['email'])->toEqual('charlie@example.com');
+    expect($submission->data['_replyto'])->toEqual('charlie-alt@example.com');
+    expect((new SubmissionReceived($form, $submission))->envelope()->hasReplyTo('charlie-alt@example.com'))->toBeTrue();
+    expect($submission->data['message'])->toEqual('Testing reply-to');
+});

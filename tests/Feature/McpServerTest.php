@@ -6,21 +6,22 @@ use App\Models\Form;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\McpServerService;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
-use Laravel\Sanctum\TransientToken;
+use Symfony\Component\HttpFoundation\Response;
 
 test('MCP server responds to initialize handshake', function () {
     $service = new McpServerService;
-    $user = User::factory()->create()->withAccessToken(new TransientToken);
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage(user: $user, input: [
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 1,
         'method' => 'initialize',
         'params' => [
             'protocolVersion' => '2024-11-05',
         ],
-    ]);
+    ]), $user);
 
     expect($response['jsonrpc'])->toEqual('2.0');
     expect($response['id'])->toEqual(1);
@@ -30,13 +31,13 @@ test('MCP server responds to initialize handshake', function () {
 
 test('MCP server lists all 5 native tools', function () {
     $service = new McpServerService;
-    $user = User::factory()->create()->withAccessToken(new TransientToken);
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage(user: $user, input: [
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 2,
         'method' => 'tools/list',
-    ]);
+    ]), $user);
 
     expect($response['jsonrpc'])->toEqual('2.0');
     $toolNames = collect($response['result']['tools'])->pluck('name')->toArray();
@@ -50,9 +51,9 @@ test('MCP server lists all 5 native tools', function () {
 
 test('MCP server create_form tool programmatically creates form', function () {
     $service = new McpServerService;
-    $user = User::factory()->create()->withAccessToken(new TransientToken);
+    $user = User::factory()->create();
 
-    $response = $service->handleMessage(user: $user, input: [
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 3,
         'method' => 'tools/call',
@@ -65,7 +66,7 @@ test('MCP server create_form tool programmatically creates form', function () {
                 'is_encrypted' => true,
             ],
         ],
-    ]);
+    ]), $user);
 
     expect($response['id'])->toEqual(3);
     $text = $response['result']['content'][0]['text'];
@@ -94,9 +95,8 @@ test('MCP server submit_form tool executes runtime submission', function () {
     ]);
 
     $service = new McpServerService;
-    $owner->withAccessToken(new TransientToken);
 
-    $response = $service->handleMessage(user: $owner, input: [
+    $response = $service->handleLocalMessage(json_encode([
         'jsonrpc' => '2.0',
         'id' => 4,
         'method' => 'tools/call',
@@ -110,7 +110,7 @@ test('MCP server submit_form tool executes runtime submission', function () {
                 ],
             ],
         ],
-    ]);
+    ]), $owner);
 
     expect($response['id'])->toEqual(4);
     $text = $response['result']['content'][0]['text'];
@@ -141,12 +141,20 @@ test('POST /api/v1/mcp endpoint handles HTTP JSON-RPC calls', function () {
         ->assertJsonPath('result.serverInfo.name', 'flowform-mcp');
 });
 
+/**
+ * @param  array<string, mixed>  $arguments
+ * @return array<string, mixed>
+ */
 function mcpToolCall(string $tool, array $arguments = []): array
 {
     return ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => ['name' => $tool, 'arguments' => $arguments]];
 }
 
-function mcpToolResult($response): array
+/**
+ * @param  TestResponse<Response>  $response
+ * @return array<int|string, mixed>
+ */
+function mcpToolResult(TestResponse $response): array
 {
     return json_decode($response->json('result.content.0.text'), true) ?? [];
 }

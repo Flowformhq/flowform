@@ -9,6 +9,10 @@ use App\Services\ConditionResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class Submission extends Model
@@ -40,7 +44,8 @@ class Submission extends Model
 
         if ($this->is_encrypted) {
             try {
-                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($value);
+                $decrypted = Crypt::decryptString($value);
+
                 return json_decode($decrypted, true) ?: [];
             } catch (\Throwable $e) {
                 return ['_encrypted' => true, '_notice' => 'Encrypted PII at rest (AES-256)'];
@@ -64,7 +69,7 @@ class Submission extends Model
         if ($shouldEncrypt) {
             $this->attributes['is_encrypted'] = true;
             $json = is_string($value) ? $value : json_encode($value);
-            $this->attributes['data'] = \Illuminate\Support\Facades\Crypt::encryptString($json);
+            $this->attributes['data'] = Crypt::encryptString($json);
         } else {
             $this->attributes['data'] = is_array($value) ? json_encode($value) : $value;
         }
@@ -77,8 +82,73 @@ class Submission extends Model
                 $submission->uuid = Str::uuid()->toString();
             }
         });
+
+        static::deleting(function (Submission $submission) {
+            $submission->deleteUploadedFiles();
+        });
     }
 
+    public function isUploadDescriptor(mixed $value): bool
+    {
+        return is_array($value)
+            && is_string($value['name'] ?? null)
+            && is_string($value['path'] ?? null)
+            && preg_match('#^submissions/'.preg_quote((string) $this->uuid, '#').'/[A-Za-z0-9]{40}\.[a-z0-9]+$#', $value['path']) === 1;
+    }
+
+    /** @return list<array{name: string, path: string, size?: int, mime?: string}> */
+    public function getUploadedFiles(): array
+    {
+        $files = [];
+
+        foreach ($this->data ?? [] as $value) {
+            $candidates = $this->isUploadDescriptor($value) ? [$value] : (is_array($value) ? $value : []);
+
+            foreach ($candidates as $candidate) {
+                if ($this->isUploadDescriptor($candidate)) {
+                    $files[] = $candidate;
+                }
+            }
+        }
+
+        return $files;
+    }
+
+    /** @return array<array-key, mixed> */
+    public function getDataWithSignedUrls(): array
+    {
+        $index = 0;
+        $sign = function (array $file) use (&$index): array {
+            return Arr::except($file, 'path') + [
+                'url' => URL::temporarySignedRoute(
+                    'admin.submissions.files.download',
+                    now()->addDay(),
+                    ['submission' => $this->id, 'index' => $index++]
+                ),
+            ];
+        };
+
+        return collect($this->data ?? [])
+            ->map(function ($value) use ($sign) {
+                if ($this->isUploadDescriptor($value)) {
+                    return $sign($value);
+                }
+
+                return is_array($value)
+                    ? array_map(fn ($item) => $this->isUploadDescriptor($item) ? $sign($item) : $item, $value)
+                    : $value;
+            })
+            ->all();
+    }
+
+    public function deleteUploadedFiles(): void
+    {
+        if (filled($this->uuid)) {
+            Storage::disk(config('flowform.uploads.disk'))->deleteDirectory("submissions/{$this->uuid}");
+        }
+    }
+
+    /** @return BelongsTo<Form, $this> */
     public function form(): BelongsTo
     {
         return $this->belongsTo(Form::class);

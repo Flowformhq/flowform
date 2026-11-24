@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Form;
 use App\Models\Submission;
+use App\Rules\ValidWebhookUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,6 +42,19 @@ class DispatchFormWebhook implements ShouldQueue
             return;
         }
 
+        $pinned = null;
+        if (! config('flowform.webhooks.allow_private_targets', false)) {
+            $pinned = ValidWebhookUrl::resolveAllowedTarget($url);
+            if ($pinned === null) {
+                Log::warning('FlowForm Webhook target rejected (private or unresolvable host)', [
+                    'form_id' => $this->form->id,
+                    'host' => parse_url($url, PHP_URL_HOST),
+                ]);
+
+                return;
+            }
+        }
+
         $body = [
             'event' => 'form.submission',
             'form' => [
@@ -58,22 +72,34 @@ class DispatchFormWebhook implements ShouldQueue
         ];
 
         $encodedBody = json_encode($body);
+        $timestamp = (string) time();
+
         $headers = [
             'Content-Type' => 'application/json',
             'User-Agent' => 'FlowForm-Webhook/1.0',
             'X-FlowForm-Event' => 'form.submission',
             'X-FlowForm-Submission-Id' => $this->submission->uuid,
-            'X-FlowForm-Timestamp' => (string) time(),
+            'X-FlowForm-Timestamp' => $timestamp,
         ];
 
         if (! empty($this->form->webhook_secret)) {
-            $headers['X-FlowForm-Signature'] = hash_hmac('sha256', $encodedBody, $this->form->webhook_secret);
+            $headers['X-FlowForm-Signature'] = hash_hmac('sha256', (string) $encodedBody, $this->form->webhook_secret);
+            $signedPayload = "{$timestamp}.{$encodedBody}";
+            $signatureV2 = hash_hmac('sha256', $signedPayload, $this->form->webhook_secret);
+            $headers['X-FlowForm-Signature-256'] = "t={$timestamp},v1={$signatureV2}";
         }
 
         try {
-            $response = Http::withHeaders($headers)
-                ->timeout(15)
-                ->post($url, $body);
+            $request = Http::withoutRedirecting()
+                ->withHeaders($headers)
+                ->timeout(15);
+
+            if ($pinned !== null) {
+                $address = str_contains($pinned['ip'], ':') ? "[{$pinned['ip']}]" : $pinned['ip'];
+                $request = $request->withOptions(['curl' => [CURLOPT_RESOLVE => ["{$pinned['host']}:{$pinned['port']}:{$address}"]]]);
+            }
+
+            $response = $request->withBody((string) $encodedBody, 'application/json')->post($url);
 
             if (! $response->successful()) {
                 Log::warning("FlowForm Webhook delivery failed for Form #{$this->form->id}", [

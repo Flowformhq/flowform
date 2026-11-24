@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Forms\Schemas;
 
+use App\Models\Form;
+use App\Rules\ValidWebhookUrl;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class FormForm
 {
@@ -38,6 +41,7 @@ class FormForm
                             return 'Save form to generate unique endpoint URL';
                         }
                         $id = $record->access_key ?: $record->slug;
+
                         return url("/f/{$id}");
                     })
                     ->readOnly()
@@ -48,7 +52,23 @@ class FormForm
                 TextInput::make('notification_email')
                     ->label('Notification Email(s)')
                     ->placeholder('e.g. you@company.com')
-                    ->helperText('Comma-separated email addresses where form submissions will be forwarded.')
+                    ->helperText(function (?Form $record): HtmlString|string {
+                        if (! $record || $record->recipients->isEmpty()) {
+                            return 'Comma-separated email addresses where form submissions will be forwarded. Recipients must verify their address before receiving notifications.';
+                        }
+
+                        $statuses = $record->recipients->map(function ($r) {
+                            $badge = $r->isVerified()
+                                ? '<span class="text-emerald-500 font-medium">✓ verified</span>'
+                                : '<span class="text-amber-500 font-medium">⏳ pending confirmation</span>';
+
+                            return e($r->email).' ('.$badge.')';
+                        })->implode(' · ');
+
+                        return new HtmlString(
+                            'Recipient statuses: '.$statuses.'<br>Unverified addresses will receive a confirmation link.'
+                        );
+                    })
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
                 TextInput::make('redirect_url')
                     ->label('Custom Redirect URL')
@@ -60,11 +80,33 @@ class FormForm
                     ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
                     ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
+                Select::make('captcha_provider')
+                    ->label('Bot Protection (Captcha)')
+                    ->options([
+                        'turnstile' => 'Cloudflare Turnstile',
+                        'hcaptcha' => 'hCaptcha',
+                    ])
+                    ->placeholder('None')
+                    ->live()
+                    ->helperText('Server-side token verification before accepting submissions.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
+                TextInput::make('captcha_site_key')
+                    ->label('Captcha Site Key')
+                    ->placeholder('e.g. 0x4AAAAAA...')
+                    ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
+                TextInput::make('captcha_secret')
+                    ->label('Captcha Secret Key')
+                    ->password()
+                    ->revealable()
+                    ->placeholder('e.g. 0x4AAAAAA...')
+                    ->required(fn ($get) => ! empty($get('captcha_provider')))
+                    ->helperText('Encrypted at rest. Never exposed to clients or APIs.')
+                    ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
                 TextInput::make('webhook_url')
                     ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')
                     ->placeholder('https://api.yourdomain.com/webhooks/intake')
                     ->helperText('Optional endpoint where submission JSON will be pushed with automated exponential retries.')
-                    ->url(),
+                    ->rule(new ValidWebhookUrl),
                 TextInput::make('webhook_secret')
                     ->label('Webhook HMAC Secret')
                     ->placeholder('e.g. whsec_...')

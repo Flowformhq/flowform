@@ -23,7 +23,7 @@ class FieldForm
             ->components([
                 Select::make('form_id')
                     ->label('Form')
-                    ->options(Form::query()->pluck('name', 'id'))
+                    ->options(Form::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->pluck('name', 'id'))
                     ->required()
                     ->searchable()
                     ->live(onBlur: true),
@@ -35,7 +35,9 @@ class FieldForm
                             return Step::query()->where('form_id', $formId)->pluck('title', 'id');
                         }
 
-                        return Step::query()->pluck('title', 'id');
+                        return Step::query()
+                            ->when(! auth()->user()?->is_admin, fn ($query) => $query->whereHas('form', fn ($q) => $q->where('user_id', auth()->id())))
+                            ->pluck('title', 'id');
                     })
                     ->required()
                     ->searchable(),

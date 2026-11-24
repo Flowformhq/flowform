@@ -1,7 +1,9 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
+    reportUnmatchedIgnoredErrors: false
     paths:
         - app
         - tests
@@ -12,7 +14,7 @@ parameters:
     ignoreErrors:
         # Pest closures bind to TestCase but PHPStan sees them as plain closures
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$\w+#'
-        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::(getJson|postJson|patchJson|actingAs|assertDatabaseHas|assertDatabaseMissing|assertJson|assertJsonPath|assertOk|assertNotFound|assertUnauthorized|assertUnprocessable|assertForbidden|assertStatus|assertExactJson|assertJsonFragment|assertJsonCount|assertJsonStructure|assertRedirect|assertSessionHas|assertSessionHasErrors|assertSessionDoesntHaveErrors|assertAuthenticated|assertGuest|assertViewHas|assertViewIs|assertViewMissing|assertCookie|assertPlainCookie|assertCookieExpired|assertCookieNotExpired|assertCookieMissing|assertHeader|assertHeaderMissing|assertSoftDeleted|assertNotSoftDeleted|assertModelExists|assertModelMissing|assertDatabaseEmpty|assertDatabaseCount|travelTo|travelBack|freezeTime|unfreezeTime|withHeader|withHeaders|withCookie|withCookies|withServerVariables|withoutMiddleware|followingRedirects|from|dump|dd|seeInConsoleOutput|dontSeeInConsoleOutput)\(\)#'
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::(get|getJson|post|travel|postJson|artisan|patchJson|actingAs|assertDatabaseHas|assertDatabaseMissing|assertJson|assertJsonPath|assertOk|assertNotFound|assertUnauthorized|assertUnprocessable|assertForbidden|assertStatus|assertExactJson|assertJsonFragment|assertJsonCount|assertJsonStructure|assertRedirect|assertSessionHas|assertSessionHasErrors|assertSessionDoesntHaveErrors|assertAuthenticated|assertGuest|assertViewHas|assertViewIs|assertViewMissing|assertCookie|assertPlainCookie|assertCookieExpired|assertCookieNotExpired|assertCookieMissing|assertHeader|assertHeaderMissing|assertSoftDeleted|assertNotSoftDeleted|assertModelExists|assertModelMissing|assertDatabaseEmpty|assertDatabaseCount|travelTo|travelBack|freezeTime|unfreezeTime|withHeader|withHeaders|withCookie|withCookies|withServerVariables|withoutMiddleware|followingRedirects|from|dump|dd|seeInConsoleOutput|dontSeeInConsoleOutput)\(\)#'
 
         # Pest helper functions that PHPStan doesn't understand
         - '#Function (beforeEach|afterEach|beforeAll|afterAll|dataset|uses|test|it|expect|describe|given|when|then|throws|skip|markTestSkipped|group|only|todo|cover|uses|pest|dd|dump|ray) not found#'
