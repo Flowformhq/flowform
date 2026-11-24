@@ -33,12 +33,14 @@ class Form extends Model
         'captcha_provider',
         'captcha_secret',
         'captcha_site_key',
+        'endpoint_secret_required',
         'is_active',
         'version',
     ];
 
     protected $hidden = [
         'captcha_secret',
+        'endpoint_secret_hash',
     ];
 
     protected $casts = [
@@ -46,6 +48,7 @@ class Form extends Model
         'is_encrypted' => 'boolean',
         'encrypted_fields' => 'array',
         'captcha_secret' => 'encrypted',
+        'endpoint_secret_required' => 'boolean',
     ];
 
     protected $attributes = [
@@ -191,6 +194,39 @@ class Form extends Model
         return ! empty($this->captcha_provider);
     }
 
+    public function hasEndpointSecret(): bool
+    {
+        return ! empty($this->endpoint_secret_hash);
+    }
+
+    public function generateEndpointSecret(): string
+    {
+        $plaintext = Str::random(40);
+
+        $this->forceFill([
+            'endpoint_secret_hash' => hash('sha256', $plaintext),
+        ])->save();
+
+        return $plaintext;
+    }
+
+    public function removeEndpointSecret(): void
+    {
+        $this->forceFill([
+            'endpoint_secret_hash' => null,
+            'endpoint_secret_required' => false,
+        ])->save();
+    }
+
+    public function verifyEndpointSecret(?string $secret): bool
+    {
+        if (empty($secret) || empty($this->endpoint_secret_hash)) {
+            return false;
+        }
+
+        return hash_equals($this->endpoint_secret_hash, hash('sha256', $secret));
+    }
+
     public function verifyCaptcha(?string $token, ?string $remoteIp = null): bool
     {
         if (empty($token) || ! $this->hasCaptcha() || empty($this->captcha_secret)) {
@@ -232,34 +268,80 @@ class Form extends Model
      */
     public function isAllowedOrigin(?string $origin): bool
     {
-        if (empty($this->allowed_domains)) {
-            return true; // No domain restrictions configured
+        $patterns = $this->allowedDomainPatterns();
+
+        if ($patterns === []) {
+            return true;
         }
 
         if (empty($origin)) {
-            return true; // Direct API or cURL requests without Origin
+            return true;
+        }
+
+        if (in_array('*', $patterns, true)) {
+            return true;
         }
 
         $host = parse_url($origin, PHP_URL_HOST) ?: $origin;
-        $host = strtolower(trim((string) $host));
 
-        $allowed = array_filter(array_map('trim', explode(',', strtolower($this->allowed_domains))));
+        return $this->matchesAllowedDomain((string) $host);
+    }
 
-        foreach ($allowed as $pattern) {
-            if ($pattern === '*' || $pattern === $host) {
-                return true;
+    public function matchesAllowedDomain(string $host): bool
+    {
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return false;
+        }
+
+        foreach ($this->allowedDomainPatterns() as $pattern) {
+            if ($pattern === '*') {
+                continue;
             }
 
-            // Wildcard matching e.g. *.myportfolio.com
-            if (str_starts_with($pattern, '*.')) {
-                $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
-                    return true;
-                }
+            if (static::hostMatchesPattern($host, $pattern)) {
+                return true;
             }
         }
 
         return false;
+    }
+
+    public static function hostMatchesPattern(string $host, string $pattern): bool
+    {
+        $host = strtolower(trim($host));
+        $pattern = strtolower(trim($pattern));
+
+        if ($host === '' || $pattern === '') {
+            return false;
+        }
+
+        if ($host === $pattern) {
+            return true;
+        }
+
+        if (str_starts_with($pattern, '*.')) {
+            $rootDomain = substr($pattern, 2);
+
+            return $rootDomain !== '' && ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain));
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function allowedDomainPatterns(): array
+    {
+        if (empty($this->allowed_domains)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            'trim',
+            explode(',', strtolower($this->allowed_domains))
+        )));
     }
 
     public function firstStep(): ?Step
