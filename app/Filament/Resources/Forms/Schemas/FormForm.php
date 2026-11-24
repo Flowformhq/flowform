@@ -104,8 +104,9 @@ class FormForm
                     ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
                 Toggle::make('endpoint_secret_required')
                     ->label('Require server secret')
-                    ->helperText('Reject endpoint submissions without a valid X-FlowForm-Secret header or _secret query parameter.')
+                    ->helperText('Reject endpoint submissions without a valid X-FlowForm-Secret header or _secret query parameter. Generate a server secret first.')
                     ->default(false)
+                    ->disabled(fn (?Form $record): bool => ! $record?->hasEndpointSecret())
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
                 TextInput::make('webhook_url')
                     ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')

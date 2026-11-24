@@ -214,6 +214,7 @@ class Form extends Model
     {
         $this->forceFill([
             'endpoint_secret_hash' => null,
+            'endpoint_secret_required' => false,
         ])->save();
     }
 

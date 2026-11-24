@@ -300,5 +300,27 @@ test('Filament EditForm generates secret once, rotates hash, removes secret, and
     Livewire::test(EditForm::class, ['record' => $form->getKey()])
         ->callAction('remove_server_secret');
 
-    expect($form->fresh()->endpoint_secret_hash)->toBeNull();
+    expect($form->fresh()->endpoint_secret_hash)->toBeNull()
+        ->and($form->fresh()->endpoint_secret_required)->toBeFalse();
+});
+
+test('require-secret toggle is disabled until a server secret exists', function () {
+    $owner = User::factory()->create();
+    $form = Form::create([
+        'user_id' => $owner->id,
+        'name' => 'No Secret Yet',
+        'slug' => 'no-secret-yet',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($owner);
+
+    Livewire::test(EditForm::class, ['record' => $form->getKey()])
+        ->assertFormFieldIsDisabled('endpoint_secret_required');
+
+    $form->generateEndpointSecret();
+
+    Livewire::test(EditForm::class, ['record' => $form->getKey()])
+        ->assertFormFieldIsEnabled('endpoint_secret_required');
 });
