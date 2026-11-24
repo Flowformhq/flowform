@@ -27,11 +27,11 @@ class MailSettingsPage extends Page
     public const PRESETS = [
         'resend' => [
             'name' => 'Resend',
-            'driver' => 'resend',
-            'host' => '',
+            'driver' => 'smtp',
+            'host' => 'smtp.resend.com',
             'port' => 587,
             'encryption' => 'tls',
-            'hint' => 'Modern developer email platform (3,000 free emails/month). Enter your API key.',
+            'hint' => 'Modern developer email platform (3,000 free emails/month). Set username to "resend" and password to your Resend API key.',
             'url' => 'https://resend.com/api-keys',
         ],
         'brevo' => [
@@ -45,20 +45,20 @@ class MailSettingsPage extends Page
         ],
         'postmark' => [
             'name' => 'Postmark',
-            'driver' => 'postmark',
-            'host' => '',
+            'driver' => 'smtp',
+            'host' => 'smtp.postmarkapp.com',
             'port' => 587,
             'encryption' => 'tls',
-            'hint' => 'Strict deliverability with high inbox rates. Enter your Server API Token.',
+            'hint' => 'Strict deliverability with high inbox rates. Enter your Server API Token for both the SMTP username and password.',
             'url' => 'https://account.postmarkapp.com/servers',
         ],
         'ses' => [
             'name' => 'Amazon SES',
-            'driver' => 'ses',
-            'host' => '',
+            'driver' => 'smtp',
+            'host' => 'email-smtp.us-east-1.amazonaws.com',
             'port' => 587,
             'encryption' => 'tls',
-            'hint' => 'Cost-effective high-volume delivery on AWS. Configure AWS access key, secret and region.',
+            'hint' => 'Cost-effective high-volume delivery on AWS. Use SES SMTP credentials (not IAM access keys) and replace the region in the host if needed.',
             'url' => 'https://console.aws.amazon.com/ses/',
         ],
         'mailgun' => [
@@ -113,10 +113,6 @@ class MailSettingsPage extends Page
 
     public ?string $password = '';
 
-    public ?string $api_key = '';
-
-    public ?string $region = 'us-east-1';
-
     public ?string $from_address = '';
 
     public ?string $from_name = 'FlowForm Intake';
@@ -126,8 +122,6 @@ class MailSettingsPage extends Page
     public string $test_recipient = '';
 
     public bool $showPassword = false;
-
-    public bool $showApiKey = false;
 
     public ?array $testResult = null;
 
@@ -141,14 +135,12 @@ class MailSettingsPage extends Page
         $setting = MailSetting::getActive() ?? MailSetting::latest()->first();
 
         if ($setting) {
-            $this->driver = $setting->driver ?: 'smtp';
+            $this->driver = in_array($setting->driver, ['smtp', 'log'], true) ? $setting->driver : 'smtp';
             $this->host = $setting->host ?? '';
             $this->port = $setting->port ?? 587;
             $this->encryption = $setting->encryption ?? 'tls';
             $this->username = $setting->username ?? '';
             $this->password = $setting->password ?? '';
-            $this->api_key = $setting->api_key ?? '';
-            $this->region = $setting->region ?? 'us-east-1';
             $this->from_address = $setting->from_address ?? config('mail.from.address', 'noreply@flowformhq.com');
             $this->from_name = $setting->from_name ?? config('mail.from.name', 'FlowForm Intake');
             $this->is_active = $setting->is_active;
@@ -186,6 +178,15 @@ class MailSettingsPage extends Page
     protected function detectPreset(string $driver, ?string $host): string
     {
         if ($driver === 'smtp') {
+            if ($host && str_contains($host, 'resend')) {
+                return 'resend';
+            }
+            if ($host && str_contains($host, 'postmarkapp')) {
+                return 'postmark';
+            }
+            if ($host && str_contains($host, 'amazonaws')) {
+                return 'ses';
+            }
             if ($host && str_contains($host, 'brevo')) {
                 return 'brevo';
             }
@@ -207,11 +208,6 @@ class MailSettingsPage extends Page
         $this->showPassword = ! $this->showPassword;
     }
 
-    public function toggleShowApiKey(): void
-    {
-        $this->showApiKey = ! $this->showApiKey;
-    }
-
     protected function getViewData(): array
     {
         return [
@@ -220,7 +216,6 @@ class MailSettingsPage extends Page
             'driver' => $this->driver,
             'is_active' => $this->is_active,
             'showPassword' => $this->showPassword,
-            'showApiKey' => $this->showApiKey,
             'testResult' => $this->testResult,
         ];
     }
@@ -228,7 +223,7 @@ class MailSettingsPage extends Page
     public function save(): void
     {
         $this->validate([
-            'driver' => ['required', 'string', 'in:smtp,ses,resend,postmark,log'],
+            'driver' => ['required', 'string', 'in:smtp,log'],
             'from_address' => ['nullable', 'email'],
             'port' => ['integer', 'min:1', 'max:65535'],
         ]);
@@ -253,10 +248,6 @@ class MailSettingsPage extends Page
         if (! empty($this->password)) {
             $setting->password = $this->password;
         }
-        if (! empty($this->api_key)) {
-            $setting->api_key = $this->api_key;
-        }
-        $setting->region = $this->region ?: 'us-east-1';
         $setting->from_address = $this->from_address ?: null;
         $setting->from_name = $this->from_name ?: null;
         $setting->is_active = $this->is_active;
@@ -300,8 +291,6 @@ class MailSettingsPage extends Page
                 'encryption' => $this->encryption,
                 'username' => $this->username,
                 'password' => $this->password,
-                'api_key' => $this->api_key,
-                'region' => $this->region,
                 'from_address' => $this->from_address,
                 'from_name' => $this->from_name,
                 'is_active' => true,
