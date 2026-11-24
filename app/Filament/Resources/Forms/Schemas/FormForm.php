@@ -78,7 +78,7 @@ class FormForm
                 TextInput::make('allowed_domains')
                     ->label('Allowed Domain Origins (Spam & Hijack Protection)')
                     ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
-                    ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
+                    ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin. Also used to allow _next redirects to these domains.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
                 Select::make('captcha_provider')
                     ->label('Bot Protection (Captcha)')

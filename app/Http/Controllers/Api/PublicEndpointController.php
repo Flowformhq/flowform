@@ -230,7 +230,7 @@ class PublicEndpointController extends Controller
         $candidateUrl = $request->input('_next') ?: $request->input('_redirect');
         $redirectUrl = null;
 
-        if ($candidateUrl && $this->isAllowedRedirectUrl($candidateUrl)) {
+        if ($candidateUrl && $this->isAllowedRedirectUrl($candidateUrl, $form)) {
             $redirectUrl = $candidateUrl;
         } elseif ($form->redirect_url) {
             $redirectUrl = $form->redirect_url;
@@ -265,7 +265,7 @@ class PublicEndpointController extends Controller
     /**
      * Validate whether a redirect target is safe against open-redirect attacks.
      */
-    protected function isAllowedRedirectUrl(?string $url): bool
+    protected function isAllowedRedirectUrl(?string $url, ?Form $form = null): bool
     {
         if (empty($url)) {
             return false;
@@ -297,24 +297,15 @@ class PublicEndpointController extends Controller
             }
         }
 
+        if ($form && $form->matchesAllowedDomain($host)) {
+            return true;
+        }
+
         // Check configured allowed hosts
         $allowedHosts = (array) config('flowform.allowed_redirect_hosts', []);
         foreach ($allowedHosts as $pattern) {
-            $pattern = strtolower(trim((string) $pattern));
-            if ($pattern === '') {
-                continue;
-            }
-
-            if ($host === $pattern) {
+            if (Form::hostMatchesPattern($host, (string) $pattern)) {
                 return true;
-            }
-
-            // Wildcard matching e.g. *.example.com
-            if (str_starts_with($pattern, '*.')) {
-                $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
-                    return true;
-                }
             }
         }
 

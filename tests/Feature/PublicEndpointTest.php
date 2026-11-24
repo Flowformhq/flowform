@@ -393,6 +393,82 @@ test('subdomain matching wildcard host in _next is accepted', function () {
     $response->assertRedirect('https://staging.example.com/work-with-us/?submitted=true');
 });
 
+test('_next allows redirects to hosts matching the form allowed_domains', function () {
+    config(['flowform.allowed_redirect_hosts' => []]);
+
+    $form = Form::create([
+        'name' => 'Owner Domain Redirect Form',
+        'slug' => 'owner-domain-redirect',
+        'type' => 'endpoint',
+        'allowed_domains' => 'example.com, *.example.org',
+        'redirect_url' => 'https://example.com/default-thanks',
+        'is_active' => true,
+    ]);
+
+    $this->post('/f/owner-domain-redirect', [
+        'name' => 'Exact Host',
+        '_next' => 'https://example.com/thanks',
+    ])->assertRedirect('https://example.com/thanks');
+
+    $this->post('/f/owner-domain-redirect', [
+        'name' => 'Wildcard Subdomain Host',
+        '_next' => 'https://app.example.org/x',
+    ])->assertRedirect('https://app.example.org/x');
+
+    $this->post('/f/owner-domain-redirect', [
+        'name' => 'Wildcard Root Host',
+        '_next' => 'https://example.org/root',
+    ])->assertRedirect('https://example.org/root');
+
+    $this->post('/f/owner-domain-redirect', [
+        'name' => 'Disallowed Substring Host',
+        '_next' => 'https://notexample.com/',
+    ])->assertRedirect('https://example.com/default-thanks');
+
+    $this->post('/f/owner-domain-redirect', [
+        'name' => 'Evil Domain Falls Back',
+        '_next' => 'https://evil.test/',
+    ])->assertRedirect('https://example.com/default-thanks');
+});
+
+test('empty allowed_domains does not allow arbitrary _next external redirects', function () {
+    config(['flowform.allowed_redirect_hosts' => []]);
+
+    Form::create([
+        'name' => 'No Domain List Form',
+        'slug' => 'no-domain-list',
+        'type' => 'endpoint',
+        'allowed_domains' => '',
+        'is_active' => true,
+    ]);
+
+    $this->post('/f/no-domain-list', [
+        'name' => 'Visitor',
+        '_next' => 'https://example.com/',
+    ])->assertOk()
+        ->assertJson(['success' => true]);
+});
+
+test('unsafe redirect schemes and traversal paths are still rejected when allowed_domains is set', function () {
+    config(['flowform.allowed_redirect_hosts' => []]);
+
+    Form::create([
+        'name' => 'Scheme Safety Form',
+        'slug' => 'scheme-safety',
+        'type' => 'endpoint',
+        'allowed_domains' => 'example.com',
+        'is_active' => true,
+    ]);
+
+    foreach (['javascript:alert(1)', '//evil.test', '/\\evil.test'] as $unsafe) {
+        $this->post('/f/scheme-safety', [
+            'name' => 'Visitor',
+            '_next' => $unsafe,
+        ])->assertOk()
+            ->assertJson(['success' => true]);
+    }
+});
+
 test('public endpoint submissions are throttled to 10 requests per minute', function () {
     $form = Form::create([
         'name' => 'Rate Limit Form',

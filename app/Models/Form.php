@@ -232,34 +232,80 @@ class Form extends Model
      */
     public function isAllowedOrigin(?string $origin): bool
     {
-        if (empty($this->allowed_domains)) {
-            return true; // No domain restrictions configured
+        $patterns = $this->allowedDomainPatterns();
+
+        if ($patterns === []) {
+            return true;
         }
 
         if (empty($origin)) {
-            return true; // Direct API or cURL requests without Origin
+            return true;
+        }
+
+        if (in_array('*', $patterns, true)) {
+            return true;
         }
 
         $host = parse_url($origin, PHP_URL_HOST) ?: $origin;
-        $host = strtolower(trim((string) $host));
 
-        $allowed = array_filter(array_map('trim', explode(',', strtolower($this->allowed_domains))));
+        return $this->matchesAllowedDomain((string) $host);
+    }
 
-        foreach ($allowed as $pattern) {
-            if ($pattern === '*' || $pattern === $host) {
-                return true;
+    public function matchesAllowedDomain(string $host): bool
+    {
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return false;
+        }
+
+        foreach ($this->allowedDomainPatterns() as $pattern) {
+            if ($pattern === '*') {
+                continue;
             }
 
-            // Wildcard matching e.g. *.myportfolio.com
-            if (str_starts_with($pattern, '*.')) {
-                $rootDomain = substr($pattern, 2);
-                if ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain)) {
-                    return true;
-                }
+            if (static::hostMatchesPattern($host, $pattern)) {
+                return true;
             }
         }
 
         return false;
+    }
+
+    public static function hostMatchesPattern(string $host, string $pattern): bool
+    {
+        $host = strtolower(trim($host));
+        $pattern = strtolower(trim($pattern));
+
+        if ($host === '' || $pattern === '') {
+            return false;
+        }
+
+        if ($host === $pattern) {
+            return true;
+        }
+
+        if (str_starts_with($pattern, '*.')) {
+            $rootDomain = substr($pattern, 2);
+
+            return $rootDomain !== '' && ($host === $rootDomain || str_ends_with($host, '.'.$rootDomain));
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function allowedDomainPatterns(): array
+    {
+        if (empty($this->allowed_domains)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            'trim',
+            explode(',', strtolower($this->allowed_domains))
+        )));
     }
 
     public function firstStep(): ?Step
