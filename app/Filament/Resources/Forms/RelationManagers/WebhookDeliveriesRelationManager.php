@@ -116,7 +116,7 @@ class WebhookDeliveriesRelationManager extends RelationManager
                             return;
                         }
 
-                        $rateKey = "webhook-retry:{$user->id}:{$authorized->id}";
+                        $rateKey = 'webhook-retry:'.sha1($authorized->delivery_key);
                         if (RateLimiter::tooManyAttempts($rateKey, 1)) {
                             Notification::make()
                                 ->title('Please wait before retrying this delivery again.')

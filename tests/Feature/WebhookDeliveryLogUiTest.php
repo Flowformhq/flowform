@@ -216,6 +216,21 @@ test('manual retry enqueues DeliverWebhook once for failed deliveries, blocks du
     $component->callTableAction('retry', $failed);
     Queue::assertPushed(DeliverWebhook::class, 1);
 
+    // Another failed attempt row for the same delivery key shares the rate limit bucket
+    $sameKeyLaterAttempt = WebhookDelivery::create([
+        'webhook_subscription_id' => $subscription->id,
+        'form_id' => $form->id,
+        'submission_id' => $submission->id,
+        'delivery_key' => "{$submission->id}:{$subscription->id}",
+        'event' => 'submission.created',
+        'attempt' => 2,
+        'status' => WebhookDelivery::STATUS_FAILED,
+        'response_code' => 500,
+        'attempted_at' => now(),
+    ]);
+    $component->callTableAction('retry', $sameKeyLaterAttempt);
+    Queue::assertPushed(DeliverWebhook::class, 1);
+
     // Separate delivery has independent rate limit bucket
     $component->callTableAction('retry', $secondFailed);
     Queue::assertPushed(DeliverWebhook::class, 2);
