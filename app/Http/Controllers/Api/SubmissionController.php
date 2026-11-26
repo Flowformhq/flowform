@@ -73,11 +73,23 @@ class SubmissionController extends Controller
             $query->where('status', $validated['status']);
         }
 
-        return SubmissionResource::collection(
-            $query->orderByDesc('id')
-                ->cursorPaginate($perPage)
-                ->withQueryString()
-        );
+        $submissions = $query->orderByDesc('id')
+            ->cursorPaginate($perPage)
+            ->withQueryString();
+
+        foreach ($submissions->items() as $submission) {
+            if ($submission->is_encrypted) {
+                AuditLog::record(
+                    action: 'submission.decrypted',
+                    auditable: $submission,
+                    details: ['form_uuid' => $form->uuid, 'status' => $submission->status, 'via' => 'list'],
+                    user: $request->user(),
+                    request: $request
+                );
+            }
+        }
+
+        return SubmissionResource::collection($submissions);
     }
 
     /**

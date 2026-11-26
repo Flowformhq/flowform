@@ -157,6 +157,7 @@ class Form extends Model
         return $this->hasMany(Entity::class);
     }
 
+    /** @return HasMany<Submission, $this> */
     public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);
