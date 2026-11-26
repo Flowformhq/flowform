@@ -235,3 +235,27 @@ test('mcp:serve requires an existing user', function () {
     $this->artisan('mcp:serve')->assertFailed();
     $this->artisan('mcp:serve', ['--user' => 'nobody@example.com'])->assertFailed();
 });
+
+test('MCP tools hide ownerless forms and their submissions from non-admins', function () {
+    $form = Form::create(['name' => 'Ownerless', 'slug' => 'ownerless-form', 'type' => 'endpoint', 'is_active' => true]);
+    Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['email' => 'ownerless@example.com']]);
+
+    Sanctum::actingAs(User::factory()->create(), ['*']);
+
+    expect(mcpToolResult($this->postJson('/api/v1/mcp', mcpToolCall('list_forms'))))->toBe([]);
+
+    foreach ([
+        mcpToolCall('list_submissions', ['form_slug' => 'ownerless-form']),
+        mcpToolCall('get_form_schema', ['identifier' => $form->uuid]),
+        mcpToolCall('submit_form', ['form_slug' => 'ownerless-form', 'data' => ['x' => 1]]),
+    ] as $call) {
+        $response = $this->postJson('/api/v1/mcp', $call)->assertOk();
+        expect($response->json('result.isError'))->toBeTrue();
+        expect($response->json('result.content.0.text'))->not->toContain('ownerless@example.com');
+    }
+
+    expect(Submission::where('form_id', $form->id)->count())->toBe(1);
+
+    Sanctum::actingAs(User::factory()->create(['is_admin' => true]), ['*']);
+    expect(mcpToolResult($this->postJson('/api/v1/mcp', mcpToolCall('list_submissions', ['form_slug' => 'ownerless-form']))))->toHaveCount(1);
+});

@@ -340,10 +340,10 @@ class SubmissionController extends Controller
                     ->orWhereHas('form', function ($formQuery) use ($user) {
                         $formQuery->where('user_id', $user->id);
                     })
-                    ->orWhere(function ($legacy) {
+                    ->when($user->is_admin, fn ($adminQuery) => $adminQuery->orWhere(function ($legacy) {
                         $legacy->whereNull('user_id')
                             ->whereHas('form', fn ($fq) => $fq->whereNull('user_id'));
-                    });
+                    }));
             });
         } else {
             $query->where('status', 'draft')->whereNull('user_id');
