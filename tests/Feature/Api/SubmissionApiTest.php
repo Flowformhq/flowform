@@ -391,9 +391,9 @@ function guestSubmissionForm(): Form
     return $form;
 }
 
-test('guest routes return 404 for a completed submission', function () {
+test('guest routes return 404 for a closed submission', function (string $status) {
     $form = guestSubmissionForm();
-    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'meta' => ['ip' => '203.0.113.5']]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => $status, 'meta' => ['ip' => '203.0.113.5']]);
 
     $this->getJson("/api/v1/public/submissions/{$submission->uuid}")->assertNotFound();
     $this->getJson("/api/v1/public/submissions/{$submission->uuid}/conditions")->assertNotFound();
@@ -405,10 +405,10 @@ test('guest routes return 404 for a completed submission', function () {
     $this->postJson("/api/v1/public/submissions/{$submission->uuid}/retreat")->assertNotFound();
 
     $submission->refresh();
-    expect($submission->status)->toBe('completed')
+    expect($submission->status)->toBe($status)
         ->and($submission->meta)->toBe(['ip' => '203.0.113.5'])
         ->and($submission->values()->count())->toBe(0);
-});
+})->with(['completed', 'abandoned']);
 
 test('guest routes return 404 for a headless endpoint submission', function () {
     Form::create(['name' => 'Contact', 'slug' => 'contact-guest', 'type' => 'endpoint', 'is_active' => true]);
@@ -447,6 +447,7 @@ test('guest PATCH merges meta instead of replacing it and cannot reopen a draft'
         ->assertJsonValidationErrors(['status']);
 
     $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['meta' => ['utm' => 'x']])->assertOk();
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['meta' => null])->assertOk();
 
     expect($submission->fresh()->meta)->toBe(['source' => 'landing', 'utm' => 'x']);
 });
