@@ -192,4 +192,12 @@ test('token:create artisan command supports --abilities and defaults to wildcard
     ]);
     expect($exitInvalid)->toBe(1);
     expect(PersonalAccessToken::where('name', 'bad-cli')->exists())->toBeFalse();
+
+    $exitEmpty = Artisan::call('token:create', [
+        'name' => 'empty-cli',
+        'email' => $user->email,
+        '--abilities' => ' , ',
+    ]);
+    expect($exitEmpty)->toBe(1);
+    expect(PersonalAccessToken::where('name', 'empty-cli')->exists())->toBeFalse();
 });

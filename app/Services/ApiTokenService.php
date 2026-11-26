@@ -30,8 +30,7 @@ class ApiTokenService
             return ['*'];
         }
 
-        $valid = $this->allowedAbilityValues();
-        if (array_diff($requested, $valid) !== []) {
+        if ($requested === [] || array_diff($requested, $this->allowedAbilityValues()) !== []) {
             return null;
         }
 
