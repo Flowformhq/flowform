@@ -163,6 +163,18 @@ class Form extends Model
         return $this->hasMany(Submission::class);
     }
 
+    /** @return HasMany<WebhookSubscription, $this> */
+    public function webhookSubscriptions(): HasMany
+    {
+        return $this->hasMany(WebhookSubscription::class);
+    }
+
+    /** @return HasMany<WebhookDelivery, $this> */
+    public function webhookDeliveries(): HasMany
+    {
+        return $this->hasMany(WebhookDelivery::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

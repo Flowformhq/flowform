@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\McpController;
 use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Api\SubmissionController;
+use App\Http\Controllers\Api\WebhookController;
 use App\Support\TokenAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,13 @@ Route::prefix('v1')->group(function () {
             Route::post('submissions/{uuid}/values', [SubmissionController::class, 'storeValues']);
             Route::post('submissions/{uuid}/advance', [SubmissionController::class, 'advance']);
             Route::post('submissions/{uuid}/retreat', [SubmissionController::class, 'retreat']);
+        });
+
+        // Webhook subscriptions (REST hooks)
+        Route::middleware('ability:'.TokenAbility::WebhooksManage->value)->group(function () {
+            Route::get('webhooks', [WebhookController::class, 'index']);
+            Route::post('webhooks', [WebhookController::class, 'store']);
+            Route::delete('webhooks/{uuid}', [WebhookController::class, 'destroy']);
         });
 
         // GDPR & HIPAA Compliance API

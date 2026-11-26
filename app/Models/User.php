@@ -65,6 +65,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(SocialAccount::class);
     }
 
+    /** @return HasMany<WebhookSubscription, $this> */
+    public function webhookSubscriptions(): HasMany
+    {
+        return $this->hasMany(WebhookSubscription::class);
+    }
+
     public function isPro(): bool
     {
         if ($this->is_admin) {

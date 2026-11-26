@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\DispatchFormWebhook;
 use App\Jobs\SendChatNotification;
 use App\Mail\SubmissionReceived;
 use App\Models\Form;
 use App\Models\Submission;
+use App\Services\WebhookDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -213,13 +213,11 @@ class PublicEndpointController extends Controller
             }
         }
 
-        // 7. Dispatch Outbound Webhook (with HMAC SHA-256 signature and exponential retries)
-        if (! empty($form->webhook_url)) {
-            try {
-                DispatchFormWebhook::dispatch($form, $submission, $submission->getDataWithSignedUrls());
-            } catch (\Throwable $e) {
-                report($e);
-            }
+        // 7. Dispatch Outbound Webhooks (legacy webhook_url + active REST hook subscriptions)
+        try {
+            app(WebhookDispatcher::class)->dispatchForSubmission($form, $submission);
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         // 8. Dispatch Chat Notification Channels (Slack, Discord, Telegram)

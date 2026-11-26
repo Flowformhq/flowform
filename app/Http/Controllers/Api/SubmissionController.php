@@ -13,6 +13,7 @@ use App\Models\Field;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Models\SubmissionValue;
+use App\Services\WebhookDispatcher;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -180,6 +181,7 @@ class SubmissionController extends Controller
         $this->ensureActiveFormForPublic($submission, $request);
 
         $isGuest = $this->isGuestRequest($request);
+        $wasCompleted = $submission->status === 'completed';
 
         $data = $request->validate([
             'status' => ['sometimes', 'string', Rule::in($isGuest ? ['completed', 'abandoned'] : ['draft', 'completed', 'abandoned'])],
@@ -192,6 +194,14 @@ class SubmissionController extends Controller
 
         $submission->update($data);
         $submission->load('form');
+
+        if (! $wasCompleted && $submission->status === 'completed' && $submission->form !== null) {
+            try {
+                app(WebhookDispatcher::class)->dispatchForSubmission($submission->form, $submission);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return response()->json([
             'data' => (new SubmissionResource($submission))->resolve($request),
