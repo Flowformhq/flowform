@@ -59,6 +59,14 @@ test('Livewire creates scoped submissions:read token shown once, allows GET and 
         ->assertForbidden();
 });
 
+test('create token form pre-selects no abilities', function () {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(ApiTokensPage::class)
+        ->mountAction('create_token')
+        ->assertActionDataSet(['abilities' => []]);
+});
+
 test('revoked token returns 401 Unauthorized', function () {
     $user = User::factory()->create();
     $form = Form::create(['user_id' => $user->id, 'name' => 'Revoke Form', 'is_active' => true]);

@@ -103,7 +103,6 @@ class ApiTokensPage extends Page implements HasTable
                     CheckboxList::make('abilities')
                         ->label('Abilities')
                         ->options(TokenAbility::options())
-                        ->default(TokenAbility::values())
                         ->required()
                         ->minItems(1)
                         ->columns(1),
