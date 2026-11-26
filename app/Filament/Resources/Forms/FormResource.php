@@ -9,6 +9,7 @@ use App\Filament\Resources\Forms\Pages\EditForm;
 use App\Filament\Resources\Forms\Pages\ListForms;
 use App\Filament\Resources\Forms\RelationManagers\NotificationChannelsRelationManager;
 use App\Filament\Resources\Forms\RelationManagers\StepsRelationManager;
+use App\Filament\Resources\Forms\RelationManagers\WebhookDeliveriesRelationManager;
 use App\Filament\Resources\Forms\Schemas\FormForm;
 use App\Filament\Resources\Forms\Tables\FormsTable;
 use App\Models\Form;
@@ -44,6 +45,7 @@ class FormResource extends Resource
         return [
             StepsRelationManager::class,
             NotificationChannelsRelationManager::class,
+            WebhookDeliveriesRelationManager::class,
         ];
     }
 
