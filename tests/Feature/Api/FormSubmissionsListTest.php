@@ -283,3 +283,12 @@ test('listing encrypted submissions records a decryption audit entry per returne
     ]);
     $this->assertDatabaseCount('audit_logs', 1);
 });
+
+test('non-admin cannot list submissions of an ownerless form', function () {
+    $form = Form::create(['name' => 'Ownerless', 'slug' => 'ownerless-list', 'type' => 'endpoint', 'is_active' => true]);
+    Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['email' => 'ownerless@example.com']]);
+
+    Sanctum::actingAs(User::factory()->create(), ['*']);
+
+    $this->getJson("/api/v1/forms/{$form->uuid}/submissions")->assertNotFound();
+});
