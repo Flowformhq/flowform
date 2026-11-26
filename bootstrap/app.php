@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Middleware\OptionalSanctumAbility;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->alias([
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
+            'ability.optional' => OptionalSanctumAbility::class,
+        ]);
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : route('filament.admin.auth.login'));
         $middleware->validateCsrfTokens(except: [
             'f/*',

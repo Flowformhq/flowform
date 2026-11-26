@@ -157,6 +157,7 @@ class Form extends Model
         return $this->hasMany(Entity::class);
     }
 
+    /** @return HasMany<Submission, $this> */
     public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);
@@ -351,7 +352,9 @@ class Form extends Model
 
     public function stepCount(): int
     {
-        return $this->steps()->count();
+        return $this->relationLoaded('steps')
+            ? $this->steps->count()
+            : $this->steps()->count();
     }
 
     public function reorderSteps(array $stepIds): void

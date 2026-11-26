@@ -43,7 +43,7 @@ class ComplianceTest extends TestCase
     public function test_tenant_can_export_all_data_for_portability(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $mailSetting = MailSetting::create([
             'driver' => 'smtp',
@@ -120,7 +120,7 @@ class ComplianceTest extends TestCase
     public function test_tenant_can_erase_data_subject_submissions_by_email(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $form = Form::create([
             'user_id' => $user->id,
@@ -166,7 +166,7 @@ class ComplianceTest extends TestCase
     public function test_tenant_can_purge_all_submissions(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $form = Form::create([
             'user_id' => $user->id,
@@ -211,7 +211,7 @@ class ComplianceTest extends TestCase
     {
         $user = User::factory()->create();
         $token = $user->createToken('test-token')->plainTextToken;
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $mailSetting = MailSetting::create([
             'driver' => 'smtp',
@@ -256,7 +256,7 @@ class ComplianceTest extends TestCase
     public function test_account_erasure_requires_confirm_parameter(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
             'delete_account' => true,
@@ -316,7 +316,7 @@ class ComplianceTest extends TestCase
         ]);
 
         // Act as User A and delete account
-        Sanctum::actingAs($userA);
+        Sanctum::actingAs($userA, ['*']);
 
         $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
             'delete_account' => true,
@@ -377,7 +377,7 @@ class ComplianceTest extends TestCase
             'data' => ['message' => 'Feedback for B'],
         ]);
 
-        Sanctum::actingAs($userA);
+        Sanctum::actingAs($userA, ['*']);
 
         $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
             'delete_account' => true,
@@ -401,7 +401,7 @@ class ComplianceTest extends TestCase
         ]);
 
         // User B can still access their submission
-        Sanctum::actingAs($userB);
+        Sanctum::actingAs($userB, ['*']);
         $getResponse = $this->getJson("/api/v1/submissions/{$subOnB->uuid}");
         $getResponse->assertStatus(200);
     }
@@ -444,7 +444,7 @@ class ComplianceTest extends TestCase
             'data' => ['message' => 'Submission to B'],
         ]);
 
-        Sanctum::actingAs($userA);
+        Sanctum::actingAs($userA, ['*']);
 
         $response = $this->postJson('/api/v1/compliance/gdpr/erasure', [
             'purge_all_submissions' => true,
@@ -468,7 +468,7 @@ class ComplianceTest extends TestCase
     public function test_viewing_encrypted_submission_records_hipaa_audit_trail(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['*']);
 
         $form = Form::create([
             'user_id' => $user->id,

@@ -13,8 +13,10 @@ use App\Models\Field;
 use App\Models\Form;
 use App\Models\Submission;
 use App\Models\SubmissionValue;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
 
 /**
@@ -25,6 +27,71 @@ use Illuminate\Validation\Rule;
  */
 class SubmissionController extends Controller
 {
+    /**
+     * List submissions for a form
+     *
+     * Returns cursor-paginated submissions for a form owned by the authenticated token user, ordered newest first (`id desc`). Requires the `submissions:read` ability.
+     *
+     * @authenticated
+     *
+     * @urlParam uuid string required The UUID of the form. Example: 9e1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
+     *
+     * @queryParam since string ISO-8601 timestamp; returns submissions created strictly after this timestamp. Example: 2026-11-26T00:00:00Z
+     * @queryParam status string Filter submissions by status (`completed`, `draft`, or `abandoned`). Example: completed
+     * @queryParam per_page integer Results per page (default 25, max 100). Example: 25
+     * @queryParam cursor string Opaque pagination cursor from `meta.next_cursor`.
+     * @queryParam include string Set to `meta` to include sensitive metadata such as `ip`. Example: meta
+     *
+     * @response 200 scenario="success" {"data":[{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"completed","current_step":1,"progress_percentage":0,"data":{"email":"alice@example.com"},"meta":{"source":"astro"},"created_at":"2026-11-26T00:00:00.000000Z"}],"links":{"first":null,"last":null,"prev":null,"next":null},"meta":{"path":"http://localhost/api/v1/forms/9e1a2b3c/submissions","per_page":25,"next_cursor":null,"prev_cursor":null}}
+     * @response 403 scenario="missing submissions:read ability" {"message":"Invalid ability provided."}
+     * @response 404 scenario="form not found or not owned by user" {"message":"Not Found"}
+     * @response 422 scenario="invalid query parameter" {"message":"The since field must be a valid date."}
+     */
+    public function forForm(string $uuid, Request $request): AnonymousResourceCollection
+    {
+        $validated = $request->validate([
+            'since' => ['sometimes', 'nullable', 'date'],
+            'status' => ['sometimes', 'nullable', 'string', Rule::in(['completed', 'draft', 'abandoned'])],
+            'per_page' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        $form = Form::where('uuid', $uuid)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $perPage = min((int) ($validated['per_page'] ?? 25), 100);
+
+        $query = $form->submissions()->with('form.steps');
+
+        if (! empty($validated['since'])) {
+            $since = Carbon::parse((string) $validated['since'])
+                ->timezone((string) config('app.timezone'));
+            $query->where('created_at', '>', $since);
+        }
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        $submissions = $query->orderByDesc('id')
+            ->cursorPaginate($perPage)
+            ->withQueryString();
+
+        foreach ($submissions->items() as $submission) {
+            if ($submission->is_encrypted) {
+                AuditLog::record(
+                    action: 'submission.decrypted',
+                    auditable: $submission,
+                    details: ['form_uuid' => $form->uuid, 'status' => $submission->status, 'via' => 'list'],
+                    user: $request->user(),
+                    request: $request
+                );
+            }
+        }
+
+        return SubmissionResource::collection($submissions);
+    }
+
     /**
      * Create a submission
      *
@@ -51,14 +118,16 @@ class SubmissionController extends Controller
 
         $submission = Submission::create([
             'form_id' => $form->id,
-            'user_id' => $request->user()?->id,
+            'user_id' => $this->isGuestRequest($request) ? null : $request->user()?->id,
             'status' => 'draft',
             'current_step' => 1,
         ]);
 
         $submission->load('form');
 
-        return (new SubmissionResource($submission))->response()->setStatusCode(201);
+        return response()->json([
+            'data' => (new SubmissionResource($submission))->resolve($request),
+        ], 201);
     }
 
     /**
@@ -105,20 +174,28 @@ class SubmissionController extends Controller
      *
      * @response 200 scenario="success" {"data":{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","status":"completed","current_step":1,"progress_percentage":100,"meta":null,"created_at":"2026-04-08T00:00:00.000000Z"}}
      */
-    public function update(string $uuid, Request $request): SubmissionResource
+    public function update(string $uuid, Request $request): JsonResponse
     {
         $submission = $this->resolveSubmission($uuid, $request);
         $this->ensureActiveFormForPublic($submission, $request);
 
+        $isGuest = $this->isGuestRequest($request);
+
         $data = $request->validate([
-            'status' => ['sometimes', 'string', Rule::in(['draft', 'completed', 'abandoned'])],
+            'status' => ['sometimes', 'string', Rule::in($isGuest ? ['completed', 'abandoned'] : ['draft', 'completed', 'abandoned'])],
             'meta' => ['sometimes', 'nullable', 'array'],
         ]);
+
+        if ($isGuest && array_key_exists('meta', $data)) {
+            $data['meta'] = array_merge($submission->meta ?? [], $data['meta'] ?? []);
+        }
 
         $submission->update($data);
         $submission->load('form');
 
-        return new SubmissionResource($submission);
+        return response()->json([
+            'data' => (new SubmissionResource($submission))->resolve($request),
+        ]);
     }
 
     /**
@@ -255,8 +332,9 @@ class SubmissionController extends Controller
     {
         $query = Submission::where('uuid', $uuid);
 
-        // When accessed via authenticated API routes, enforce object-level tenancy authorization
-        if ($user = $request->user()) {
+        $user = $this->isGuestRequest($request) ? null : $request->user();
+
+        if ($user) {
             $query->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                     ->orWhereHas('form', function ($formQuery) use ($user) {
@@ -267,14 +345,22 @@ class SubmissionController extends Controller
                             ->whereHas('form', fn ($fq) => $fq->whereNull('user_id'));
                     });
             });
+        } else {
+            $query->where('status', 'draft')->whereNull('user_id');
         }
 
         return $query->firstOrFail();
     }
 
+    // Keyed on the route, not on $request->user(), so a session or token user reaching a public route still gets guest scoping.
+    protected function isGuestRequest(Request $request): bool
+    {
+        return $request->is('api/v1/public/*');
+    }
+
     protected function ensureActiveFormForPublic(Submission $submission, Request $request): void
     {
-        if (! $request->user() && ! $submission->form->is_active) {
+        if ($this->isGuestRequest($request) && ! $submission->form->is_active) {
             abort(422, 'This form is currently inactive.');
         }
     }
