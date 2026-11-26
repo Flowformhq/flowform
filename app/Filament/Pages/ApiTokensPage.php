@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Models\User;
+use App\Services\ApiTokenService;
 use App\Support\TokenAbility;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -56,6 +58,11 @@ class ApiTokensPage extends Page implements HasTable
                     ->dateTime()
                     ->placeholder('Never')
                     ->sortable(),
+                TextColumn::make('expires_at')
+                    ->label('Expires')
+                    ->dateTime()
+                    ->placeholder('Never')
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime()
@@ -90,6 +97,8 @@ class ApiTokensPage extends Page implements HasTable
 
     protected function getHeaderActions(): array
     {
+        $tokenService = app(ApiTokenService::class);
+
         return [
             Action::make('create_token')
                 ->label('Create API Token')
@@ -106,8 +115,13 @@ class ApiTokensPage extends Page implements HasTable
                         ->required()
                         ->minItems(1)
                         ->columns(1),
+                    Select::make('expires_in')
+                        ->label('Expiration')
+                        ->options($tokenService->expiryOptions())
+                        ->default(ApiTokenService::DEFAULT_UI_EXPIRY_PRESET)
+                        ->selectablePlaceholder(false),
                 ])
-                ->action(function (array $data): void {
+                ->action(function (array $data) use ($tokenService): void {
                     /** @var User $user */
                     $user = auth()->user();
 
@@ -116,7 +130,8 @@ class ApiTokensPage extends Page implements HasTable
                         TokenAbility::values()
                     ));
 
-                    $token = $user->createToken((string) $data['name'], $abilities);
+                    $expiresAt = $tokenService->resolveExpiresAtFromPreset($data['expires_in'] ?? null);
+                    $token = $user->createToken((string) $data['name'], $abilities, $expiresAt);
 
                     $this->replaceMountedAction('revealToken', [
                         'plainTextToken' => $token->plainTextToken,

@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-public')->group(function () {
-        Route::get('forms', [FormController::class, 'index']);
+        Route::get('forms', [FormController::class, 'index'])
+            ->middleware('ability.optional:'.TokenAbility::FormsRead->value);
         Route::get('forms/{uuid}/schema', [FormController::class, 'schema']);
         Route::get('forms/{slug}/by-slug', [FormController::class, 'showBySlug']);
         Route::get('forms/{uuid}', [FormController::class, 'show']);
@@ -39,6 +40,7 @@ Route::prefix('v1')->group(function () {
             ->name('api.mcp');
 
         Route::middleware('ability:'.TokenAbility::SubmissionsRead->value)->group(function () {
+            Route::get('forms/{uuid}/submissions', [SubmissionController::class, 'forForm']);
             Route::get('submissions/{uuid}', [SubmissionController::class, 'show']);
             Route::get('submissions/{uuid}/conditions', [SubmissionController::class, 'conditions']);
         });

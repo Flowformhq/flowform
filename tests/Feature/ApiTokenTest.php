@@ -238,3 +238,106 @@ test('legacy wildcard token is never rejected for missing abilities on any token
         expect($status)->not->toBeIn([401, 403], "{$method} {$uri} returned {$status}");
     }
 });
+
+test('expired token returns 401 and unexpired token returns 200', function () {
+    $user = User::factory()->create();
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Expiry Form', 'is_active' => true]);
+
+    $validToken = $user->createToken('Valid', [TokenAbility::FormsRead->value, TokenAbility::SubmissionsRead->value], now()->addDay())->plainTextToken;
+    $expiredToken = $user->createToken('Expired', [TokenAbility::FormsRead->value, TokenAbility::SubmissionsRead->value], now()->subMinute())->plainTextToken;
+
+    $this->getJson('/api/v1/forms', ['Authorization' => "Bearer {$validToken}"])
+        ->assertOk();
+
+    $this->getJson("/api/v1/forms/{$form->uuid}/submissions", ['Authorization' => "Bearer {$validToken}"])
+        ->assertOk();
+
+    app('auth')->forgetGuards();
+
+    $this->getJson('/api/v1/forms', ['Authorization' => "Bearer {$expiredToken}"])
+        ->assertUnauthorized();
+
+    $this->getJson("/api/v1/forms/{$form->uuid}/submissions", ['Authorization' => "Bearer {$expiredToken}"])
+        ->assertUnauthorized();
+});
+
+test('UI token creation supports expiry presets with 1 year default and displays expires_at and last_used_at columns', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ApiTokensPage::class)
+        ->mountAction('create_token')
+        ->assertActionDataSet([
+            'abilities' => [],
+            'expires_in' => '365',
+        ])
+        ->assertTableColumnExists('expires_at')
+        ->assertTableColumnExists('last_used_at');
+
+    // Default (1 year)
+    Livewire::test(ApiTokensPage::class)
+        ->callAction('create_token', data: [
+            'name' => 'Default One Year',
+            'abilities' => [TokenAbility::FormsRead->value],
+        ])
+        ->assertActionMounted('revealToken');
+
+    $oneYearToken = PersonalAccessToken::where('name', 'Default One Year')->firstOrFail();
+    expect($oneYearToken->expires_at)->not->toBeNull();
+    expect(abs(now()->diffInDays($oneYearToken->expires_at) - 365))->toBeLessThanOrEqual(2);
+
+    // 30 days
+    Livewire::test(ApiTokensPage::class)
+        ->callAction('create_token', data: [
+            'name' => 'Thirty Days',
+            'abilities' => [TokenAbility::FormsRead->value],
+            'expires_in' => '30',
+        ])
+        ->assertActionMounted('revealToken');
+
+    $thirtyDayToken = PersonalAccessToken::where('name', 'Thirty Days')->firstOrFail();
+    expect(abs(now()->diffInDays($thirtyDayToken->expires_at) - 30))->toBeLessThanOrEqual(1);
+
+    // No expiry
+    Livewire::test(ApiTokensPage::class)
+        ->callAction('create_token', data: [
+            'name' => 'Never Expires',
+            'abilities' => [TokenAbility::FormsRead->value],
+            'expires_in' => 'never',
+        ])
+        ->assertActionMounted('revealToken');
+
+    $neverToken = PersonalAccessToken::where('name', 'Never Expires')->firstOrFail();
+    expect($neverToken->expires_at)->toBeNull();
+});
+
+test('token:create artisan command supports --expires and rejects non-positive values', function () {
+    $user = User::factory()->create(['email' => 'cli-expiry@example.com']);
+
+    $exitDefault = Artisan::call('token:create', [
+        'name' => 'cli-no-expiry',
+        'email' => $user->email,
+    ]);
+    expect($exitDefault)->toBe(0);
+    expect(PersonalAccessToken::where('name', 'cli-no-expiry')->firstOrFail()->expires_at)->toBeNull();
+
+    $exit30 = Artisan::call('token:create', [
+        'name' => 'cli-30d',
+        'email' => $user->email,
+        '--expires' => '30',
+    ]);
+    expect($exit30)->toBe(0);
+    $token30 = PersonalAccessToken::where('name', 'cli-30d')->firstOrFail();
+    expect($token30->expires_at)->not->toBeNull();
+    expect(abs(now()->diffInDays($token30->expires_at) - 30))->toBeLessThanOrEqual(1);
+
+    foreach (['0', '-5', 'abc'] as $invalid) {
+        $exitInvalid = Artisan::call('token:create', [
+            'name' => "cli-bad-{$invalid}",
+            'email' => $user->email,
+            '--expires' => $invalid,
+        ]);
+        expect($exitInvalid)->toBe(1);
+        expect(PersonalAccessToken::where('name', "cli-bad-{$invalid}")->exists())->toBeFalse();
+    }
+});
