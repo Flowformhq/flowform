@@ -7,7 +7,10 @@ use App\Models\Form;
 use App\Models\Submission;
 use App\Models\User;
 use App\Support\TokenAbility;
+use Filament\Actions\Exceptions\ActionNotResolvableException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
@@ -102,12 +105,8 @@ test('user only sees and can revoke their own tokens', function () {
         ->assertCanSeeTableRecords([$aliceToken])
         ->assertCanNotSeeTableRecords([$bobToken]);
 
-    try {
-        Livewire::test(ApiTokensPage::class)
-            ->callTableAction('revoke', $bobToken);
-    } catch (Throwable) {
-        // Foreign record should not be resolvable or deletable by another tenant
-    }
+    expect(fn () => Livewire::test(ApiTokensPage::class)->callTableAction('revoke', $bobToken))
+        ->toThrow(ActionNotResolvableException::class);
 
     expect(PersonalAccessToken::find($bobToken->id))->not->toBeNull();
     expect(PersonalAccessToken::find($aliceToken->id))->not->toBeNull();
@@ -200,4 +199,42 @@ test('token:create artisan command supports --abilities and defaults to wildcard
     ]);
     expect($exitEmpty)->toBe(1);
     expect(PersonalAccessToken::where('name', 'empty-cli')->exists())->toBeFalse();
+});
+
+/** @return Collection<int, Illuminate\Routing\Route> */
+function tokenAuthenticatedApiRoutes(): Collection
+{
+    return collect(Route::getRoutes()->getRoutes())
+        ->filter(fn ($route) => str_starts_with($route->uri(), 'api/') && in_array('auth:sanctum', $route->gatherMiddleware(), true))
+        ->values();
+}
+
+test('every token-authenticated API route enforces a token ability', function () {
+    $unguarded = tokenAuthenticatedApiRoutes()
+        ->reject(fn ($route) => $route->getName() === 'api.mcp')
+        ->reject(fn ($route) => collect($route->gatherMiddleware())->contains(
+            fn ($middleware) => is_string($middleware) && (str_starts_with($middleware, 'ability:') || str_starts_with($middleware, 'abilities:'))
+        ))
+        ->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri())
+        ->values()
+        ->all();
+
+    expect(tokenAuthenticatedApiRoutes())->not->toBeEmpty()
+        ->and($unguarded)->toBe([]);
+});
+
+test('legacy wildcard token is never rejected for missing abilities on any token-authenticated route', function () {
+    $user = User::factory()->create();
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Legacy Form', 'is_active' => true]);
+    $submission = Submission::create(['form_id' => $form->id, 'user_id' => $user->id]);
+    $headers = ['Authorization' => 'Bearer '.$user->createToken('legacy-token')->plainTextToken];
+
+    foreach (tokenAuthenticatedApiRoutes() as $route) {
+        $method = collect($route->methods())->reject(fn (string $m) => $m === 'HEAD')->first();
+        $uri = '/'.str_replace('{uuid}', $submission->uuid, $route->uri());
+
+        $status = $this->json($method, $uri, [], $headers)->status();
+
+        expect($status)->not->toBeIn([401, 403], "{$method} {$uri} returned {$status}");
+    }
 });
