@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Telemetry\TelemetryContract;
 use App\Services\Telemetry\TelemetryService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -23,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
                 config('flowform.telemetry.enabled'),
             );
         });
+
+        $this->app->bind(TelemetryContract::class, TelemetryService::class);
     }
 
     public function boot(): void

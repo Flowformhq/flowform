@@ -1,8 +1,14 @@
 <?php
 
+use App\Models\Form;
+use App\Models\Submission;
 use App\Models\TelemetryInstall;
+use App\Models\User;
+use App\Services\Telemetry\NullTelemetryService;
+use App\Services\Telemetry\TelemetryContract;
 use App\Services\Telemetry\TelemetryService;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -187,4 +193,101 @@ test('response volume bucket returns correct ranges', function () {
     $method->setAccessible(true);
 
     expect($method->invoke($service))->toBe('0');
+});
+
+test('fresh install config and .env.example default telemetry to disabled and make no HTTP calls', function () {
+    Http::fake();
+
+    expect(config('flowform.telemetry.enabled'))->toBeFalse();
+
+    $envExample = (string) file_get_contents(base_path('.env.example'));
+    expect($envExample)->toContain('FLOWFORM_TELEMETRY_ENABLED=false');
+
+    $exit = Artisan::call('flowform:telemetry:ping');
+    expect($exit)->toBe(0);
+
+    Http::assertNothingSent();
+});
+
+test('flowform:telemetry opt-in defaults prompt to no and allows explicit opt-in', function () {
+    $this->artisan('flowform:telemetry', ['action' => 'opt-in'])
+        ->expectsConfirmation('Do you want to enable anonymous telemetry?', 'no')
+        ->assertSuccessful();
+
+    expect($this->install->fresh()->opted_in)->toBeFalse();
+
+    $this->artisan('flowform:telemetry', ['action' => 'opt-in'])
+        ->expectsConfirmation('Do you want to enable anonymous telemetry?', 'yes')
+        ->assertSuccessful();
+
+    expect($this->install->fresh()->opted_in)->toBeTrue();
+});
+
+test('telemetry payload strictly contains only allowlisted fields with no PII, hostnames, emails, IPs, or exact counts', function () {
+    Http::fake(['*' => Http::response(['ok' => true], 200)]);
+
+    config(['app.url' => 'https://secret-app.example.com']);
+    $user = User::factory()->create(['email' => 'owner-secret@example.com']);
+    $form = Form::create([
+        'user_id' => $user->id,
+        'name' => 'Confidential Onboarding Form',
+        'allowed_domains' => 'client-domain.example.org',
+        'type' => 'endpoint',
+        'is_active' => true,
+    ]);
+    Submission::create([
+        'form_id' => $form->id,
+        'status' => 'completed',
+        'data' => ['email' => 'respondent-pii@example.com'],
+        'meta' => ['ip' => '203.0.113.77'],
+    ]);
+
+    $service = new TelemetryService(
+        app(HttpFactory::class),
+        'https://example.com/ping',
+        true,
+    );
+
+    $service->optIn();
+    $result = $service->ping();
+    expect($result->sent)->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        $payload = $request->data();
+        $keys = array_keys($payload);
+        $allowed = TelemetryService::ALLOWED_PAYLOAD_FIELDS;
+
+        sort($keys);
+        sort($allowed);
+
+        $serialized = (string) json_encode($payload);
+
+        return $keys === $allowed
+            && $payload['response_volume_bucket'] === '1-99'
+            && ! str_contains($serialized, 'owner-secret@example.com')
+            && ! str_contains($serialized, 'Confidential Onboarding Form')
+            && ! str_contains($serialized, 'client-domain.example.org')
+            && ! str_contains($serialized, 'respondent-pii@example.com')
+            && ! str_contains($serialized, '203.0.113.77')
+            && ! str_contains($serialized, 'secret-app.example.com');
+    });
+});
+
+test('telemetry interface can be backed by NullTelemetryService in tests', function () {
+    Http::fake();
+
+    $nullSink = new NullTelemetryService;
+    app()->instance(TelemetryContract::class, $nullSink);
+
+    $resolved = app(TelemetryContract::class);
+    expect($resolved)->toBeInstanceOf(NullTelemetryService::class)
+        ->and($resolved->isEnabled())->toBeFalse()
+        ->and($resolved->isOptedIn())->toBeFalse()
+        ->and($resolved->ping()->sent)->toBeFalse();
+
+    $resolved->optIn();
+    expect($resolved->isOptedIn())->toBeFalse();
+
+    Artisan::call('flowform:telemetry:ping');
+    Http::assertNothingSent();
 });

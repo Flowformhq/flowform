@@ -8,7 +8,7 @@ return [
     ],
 
     'telemetry' => [
-        'enabled' => (bool) env('FLOWFORM_TELEMETRY_ENABLED', true),
+        'enabled' => (bool) env('FLOWFORM_TELEMETRY_ENABLED', false),
 
         'endpoint' => env(
             'FLOWFORM_TELEMETRY_ENDPOINT',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\Telemetry\TelemetryService;
+use App\Services\Telemetry\TelemetryContract;
 use Illuminate\Console\Command;
 
 class TelemetryPing extends Command
@@ -13,7 +13,7 @@ class TelemetryPing extends Command
 
     protected $description = 'Send an anonymous telemetry ping (called by scheduler)';
 
-    public function handle(TelemetryService $telemetry): int
+    public function handle(TelemetryContract $telemetry): int
     {
         if (! $telemetry->isEnabled()) {
             $this->info('Telemetry is disabled via config.');

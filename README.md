@@ -144,3 +144,7 @@ The FlowForm engine is dual-licensed:
 Starter kits and the TypeScript SDK are licensed under the [MIT license](https://opensource.org/licenses/MIT).
 
 See [LICENSE-PROMISE.md](LICENSE-PROMISE.md) for our commitment to keeping the engine open.
+
+## Telemetry
+
+Anonymous install-level telemetry is **off by default** (`FLOWFORM_TELEMETRY_ENABLED=false`) and never collects PII, emails, IPs, hostnames, form names, or submission data. See [docs/telemetry.md](docs/telemetry.md) for the exact allowlisted payload fields, schedule, opt-in/opt-out commands, and retention statement.

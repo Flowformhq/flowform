@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\TelemetryInstall;
-use App\Services\Telemetry\TelemetryService;
+use App\Services\Telemetry\TelemetryContract;
 use Illuminate\Console\Command;
 
 class TelemetryOptIn extends Command
@@ -14,7 +14,7 @@ class TelemetryOptIn extends Command
 
     protected $description = 'Manage anonymous telemetry reporting';
 
-    public function handle(TelemetryService $telemetry): int
+    public function handle(TelemetryContract $telemetry): int
     {
         $action = $this->argument('action');
 
@@ -42,7 +42,7 @@ class TelemetryOptIn extends Command
             $this->warn('');
             $this->warn('Set FLOWFORM_TELEMETRY_ENABLED=false in .env to disable completely.');
 
-            if (! $this->confirm('Do you want to enable anonymous telemetry?', true)) {
+            if (! $this->confirm('Do you want to enable anonymous telemetry?', false)) {
                 $this->info('Telemetry remains disabled.');
 
                 return self::SUCCESS;
