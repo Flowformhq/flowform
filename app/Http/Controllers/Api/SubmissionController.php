@@ -51,7 +51,7 @@ class SubmissionController extends Controller
 
         $submission = Submission::create([
             'form_id' => $form->id,
-            'user_id' => $request->user()?->id,
+            'user_id' => $this->isGuestRequest($request) ? null : $request->user()?->id,
             'status' => 'draft',
             'current_step' => 1,
         ]);
@@ -110,10 +110,16 @@ class SubmissionController extends Controller
         $submission = $this->resolveSubmission($uuid, $request);
         $this->ensureActiveFormForPublic($submission, $request);
 
+        $isGuest = $this->isGuestRequest($request);
+
         $data = $request->validate([
-            'status' => ['sometimes', 'string', Rule::in(['draft', 'completed', 'abandoned'])],
+            'status' => ['sometimes', 'string', Rule::in($isGuest ? ['completed', 'abandoned'] : ['draft', 'completed', 'abandoned'])],
             'meta' => ['sometimes', 'nullable', 'array'],
         ]);
+
+        if ($isGuest && array_key_exists('meta', $data)) {
+            $data['meta'] = array_merge($submission->meta ?? [], $data['meta'] ?? []);
+        }
 
         $submission->update($data);
         $submission->load('form');
@@ -255,8 +261,9 @@ class SubmissionController extends Controller
     {
         $query = Submission::where('uuid', $uuid);
 
-        // When accessed via authenticated API routes, enforce object-level tenancy authorization
-        if ($user = $request->user()) {
+        $user = $this->isGuestRequest($request) ? null : $request->user();
+
+        if ($user) {
             $query->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                     ->orWhereHas('form', function ($formQuery) use ($user) {
@@ -267,14 +274,22 @@ class SubmissionController extends Controller
                             ->whereHas('form', fn ($fq) => $fq->whereNull('user_id'));
                     });
             });
+        } else {
+            $query->where('status', 'draft')->whereNull('user_id');
         }
 
         return $query->firstOrFail();
     }
 
+    // Keyed on the route, not on $request->user(), so a session or token user reaching a public route still gets guest scoping.
+    protected function isGuestRequest(Request $request): bool
+    {
+        return $request->is('api/v1/public/*');
+    }
+
     protected function ensureActiveFormForPublic(Submission $submission, Request $request): void
     {
-        if (! $request->user() && ! $submission->form->is_active) {
+        if ($this->isGuestRequest($request) && ! $submission->form->is_active) {
             abort(422, 'This form is currently inactive.');
         }
     }
