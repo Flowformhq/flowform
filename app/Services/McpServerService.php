@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Jobs\DispatchFormWebhook;
 use App\Models\Form;
 use App\Models\Step;
 use App\Models\Submission;
@@ -371,13 +370,11 @@ class McpServerService
         ];
         $submission->save();
 
-        // Dispatch webhook if configured
-        if (! empty($form->webhook_url)) {
-            try {
-                DispatchFormWebhook::dispatch($form, $submission, $data);
-            } catch (\Throwable $e) {
-                // Ignore queue exceptions in test
-            }
+        // Dispatch webhooks if configured
+        try {
+            app(WebhookDispatcher::class)->dispatchForSubmission($form, $submission, $data);
+        } catch (\Throwable $e) {
+            // Ignore queue exceptions in test
         }
 
         return [

@@ -7,8 +7,11 @@ use App\Filament\Resources\FieldTypes\FieldTypeResource;
 use App\Filament\Resources\Steps\Pages\CreateStep;
 use App\Filament\Resources\Steps\Pages\ListSteps;
 use App\Filament\Resources\Steps\StepResource;
+use App\Filament\Resources\Submissions\Pages\ListSubmissions;
+use App\Filament\Resources\Submissions\SubmissionResource;
 use App\Models\Form;
 use App\Models\Step;
+use App\Models\Submission;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -45,4 +48,17 @@ test('steps are scoped to the owner of their form', function () {
         ->assertHasFormErrors(['form_id']);
 
     expect(Step::where('title', 'Injected')->exists())->toBeFalse();
+});
+
+test('submissions on ownerless forms are visible only to admins in the panel', function () {
+    $form = Form::create(['name' => 'Ownerless', 'slug' => 'ownerless-panel', 'type' => 'endpoint', 'is_active' => true]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'data' => ['email' => 'ownerless@example.com']]);
+
+    $this->actingAs(User::factory()->create());
+    Livewire::test(ListSubmissions::class)->assertCanNotSeeTableRecords([$submission]);
+    $this->get(SubmissionResource::getUrl('view', ['record' => $submission]))->assertNotFound();
+
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+    Livewire::test(ListSubmissions::class)->assertCanSeeTableRecords([$submission]);
+    $this->get(SubmissionResource::getUrl('view', ['record' => $submission]))->assertOk();
 });

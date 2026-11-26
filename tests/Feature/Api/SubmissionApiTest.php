@@ -10,7 +10,7 @@ use Laravel\Sanctum\Sanctum;
 
 test('POST /api/v1/submissions creates a new submission', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'My Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'My Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
 
     Sanctum::actingAs($user, ['*']);
@@ -39,7 +39,7 @@ test('POST /api/v1/submissions returns 422 for unknown form_uuid', function () {
 
 test('GET /api/v1/submissions/{uuid} returns submission with values map', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'My Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'My Form', 'is_active' => true]);
     $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
     $field = Field::create([
@@ -67,7 +67,7 @@ test('GET /api/v1/submissions/{uuid} requires authentication', function () {
 
 test('PATCH /api/v1/submissions/{uuid} updates status', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'My Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'My Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $submission = Submission::create(['form_id' => $form->id]);
 
@@ -80,7 +80,7 @@ test('PATCH /api/v1/submissions/{uuid} updates status', function () {
 
 test('POST /api/v1/submissions/{uuid}/values upserts field values', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'My Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'My Form', 'is_active' => true]);
     $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
     Field::create([
@@ -104,7 +104,7 @@ test('POST /api/v1/submissions/{uuid}/values upserts field values', function () 
 
 test('POST /api/v1/submissions/{uuid}/values upserts on second call', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'My Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'My Form', 'is_active' => true]);
     $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
     Field::create([
@@ -133,7 +133,7 @@ test('POST /api/v1/submissions/{uuid}/values upserts on second call', function (
 
 test('POST /api/v1/submissions/{uuid}/advance advances the step', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'Multi-step Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Multi-step Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 1]);
@@ -147,7 +147,7 @@ test('POST /api/v1/submissions/{uuid}/advance advances the step', function () {
 
 test('POST /api/v1/submissions/{uuid}/advance returns 422 on last step', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'Single-step Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Single-step Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Only Step']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 1]);
 
@@ -159,7 +159,7 @@ test('POST /api/v1/submissions/{uuid}/advance returns 422 on last step', functio
 
 test('POST /api/v1/submissions/{uuid}/retreat retreats the step', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'Multi-step Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Multi-step Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 2]);
@@ -173,7 +173,7 @@ test('POST /api/v1/submissions/{uuid}/retreat retreats the step', function () {
 
 test('GET /api/v1/submissions/{uuid}/conditions returns field states', function () {
     $user = User::factory()->create();
-    $form = Form::create(['name' => 'Conditional Form', 'is_active' => true]);
+    $form = Form::create(['user_id' => $user->id, 'name' => 'Conditional Form', 'is_active' => true]);
     $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
     Field::create([
@@ -506,4 +506,37 @@ test('public routes apply guest scoping even when a user is authenticated', func
     $this->getJson("/api/v1/public/submissions/{$uuid}")->assertOk();
     $this->patchJson("/api/v1/public/submissions/{$uuid}", ['status' => 'draft'])->assertUnprocessable();
     expect($completed->fresh()->status)->toBe('completed');
+});
+
+test('non-admin cannot reach submissions on ownerless forms; admin can', function () {
+    $form = Form::create(['name' => 'Ownerless Form', 'is_active' => true]);
+    $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+    Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id, 'step_id' => $step->id,
+        'field_type_id' => $ft->id, 'code' => 'answer', 'label' => 'Answer', 'order' => 1,
+    ]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'current_step' => 1, 'data' => ['email' => 'x@example.com']]);
+
+    Sanctum::actingAs(User::factory()->create(), ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submission->uuid}")->assertNotFound();
+    $this->getJson("/api/v1/submissions/{$submission->uuid}/conditions")->assertNotFound();
+    $this->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'abandoned'])->assertNotFound();
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'answer', 'value' => 'overwritten']],
+    ])->assertNotFound();
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/advance")->assertNotFound();
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/retreat")->assertNotFound();
+
+    expect($submission->fresh()->status)->toBe('completed')
+        ->and($submission->fresh()->current_step)->toBe(1)
+        ->and($submission->values()->count())->toBe(0);
+
+    Sanctum::actingAs(User::factory()->create(['is_admin' => true]), ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submission->uuid}")
+        ->assertOk()
+        ->assertJsonPath('data.uuid', $submission->uuid);
 });
