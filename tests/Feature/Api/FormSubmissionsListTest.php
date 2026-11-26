@@ -254,3 +254,32 @@ test('submissions list clamps per_page to 100 and validates query parameters', f
     $this->getJson("/api/v1/forms/{$form->uuid}/submissions?since=not-a-date", $headers)
         ->assertUnprocessable();
 });
+
+test('listing encrypted submissions records a decryption audit entry per returned submission', function () {
+    $owner = User::factory()->create();
+    $form = Form::create([
+        'user_id' => $owner->id,
+        'name' => 'Encrypted Audit',
+        'slug' => 'encrypted-audit',
+        'type' => 'endpoint',
+        'is_active' => true,
+        'is_encrypted' => true,
+    ]);
+    $plain = Form::create(['user_id' => $owner->id, 'name' => 'Plain', 'slug' => 'plain-audit', 'type' => 'endpoint', 'is_active' => true]);
+
+    $encrypted = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'is_encrypted' => true, 'data' => ['email' => 'a@example.com']]);
+    Submission::create(['form_id' => $plain->id, 'status' => 'completed', 'data' => ['email' => 'b@example.com']]);
+
+    $headers = ['Authorization' => 'Bearer '.$owner->createToken('poll', [TokenAbility::SubmissionsRead->value])->plainTextToken];
+
+    $this->getJson("/api/v1/forms/{$form->uuid}/submissions", $headers)->assertOk();
+    $this->getJson("/api/v1/forms/{$plain->uuid}/submissions", $headers)->assertOk();
+
+    $this->assertDatabaseHas('audit_logs', [
+        'user_id' => $owner->id,
+        'action' => 'submission.decrypted',
+        'auditable_type' => Submission::class,
+        'auditable_id' => $encrypted->id,
+    ]);
+    $this->assertDatabaseCount('audit_logs', 1);
+});
