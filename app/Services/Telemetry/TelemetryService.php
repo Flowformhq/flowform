@@ -9,8 +9,20 @@ use App\Models\TelemetryInstall;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
 
-class TelemetryService
+class TelemetryService implements TelemetryContract
 {
+    /** @var list<string> */
+    public const ALLOWED_PAYLOAD_FIELDS = [
+        'install_id',
+        'version',
+        'php_version',
+        'database_driver',
+        'response_volume_bucket',
+        'country',
+        'enabled_integrations',
+        'pinged_at',
+    ];
+
     public function __construct(
         private HttpFactory $http,
         private string $endpoint,
@@ -71,6 +83,9 @@ class TelemetryService
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function buildPayload(TelemetryInstall $install): array
     {
         return [
