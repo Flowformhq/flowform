@@ -69,6 +69,13 @@ class WebhookController extends Controller
             'source' => ['sometimes', 'nullable', 'string', 'max:64'],
         ]);
 
+        $activeCount = WebhookSubscription::active()->where('user_id', $request->user()->id)->count();
+        if ($activeCount >= WebhookSubscription::MAX_ACTIVE_PER_USER) {
+            return response()->json([
+                'message' => 'Active webhook subscription limit reached ('.WebhookSubscription::MAX_ACTIVE_PER_USER.'). Delete unused subscriptions first.',
+            ], 422);
+        }
+
         $formId = null;
         if (! empty($validated['form_uuid'])) {
             $form = Form::where('uuid', $validated['form_uuid'])

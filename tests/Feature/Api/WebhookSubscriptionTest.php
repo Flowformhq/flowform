@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Form;
 use App\Models\User;
+use App\Models\WebhookSubscription;
 use App\Rules\ValidWebhookUrl;
 use App\Support\TokenAbility;
 use Illuminate\Support\Facades\DB;
@@ -127,4 +128,22 @@ test('webhook subscription routes require auth and webhooks:manage ability', fun
     $this->getJson('/api/v1/webhooks', ['Authorization' => "Bearer {$readOnlyToken}"])->assertForbidden();
     $this->postJson('/api/v1/webhooks', ['target_url' => 'https://hooks.example.com/a'], ['Authorization' => "Bearer {$readOnlyToken}"])->assertForbidden();
     $this->json('DELETE', '/api/v1/webhooks/non-existent', [], ['Authorization' => "Bearer {$readOnlyToken}"])->assertForbidden();
+});
+
+test('POST /api/v1/webhooks enforces the per-user active subscription limit', function () {
+    $user = User::factory()->create();
+    $token = $user->createToken('hub', [TokenAbility::WebhooksManage->value])->plainTextToken;
+
+    for ($i = 0; $i < WebhookSubscription::MAX_ACTIVE_PER_USER; $i++) {
+        WebhookSubscription::create(['user_id' => $user->id, 'target_url' => "https://hooks.example.com/{$i}"]);
+    }
+    WebhookSubscription::create(['user_id' => $user->id, 'target_url' => 'https://hooks.example.com/disabled', 'is_active' => false]);
+
+    $this->postJson('/api/v1/webhooks', ['target_url' => 'https://hooks.example.com/over'], ['Authorization' => "Bearer {$token}"])
+        ->assertStatus(422);
+
+    WebhookSubscription::where('user_id', $user->id)->where('is_active', true)->first()->delete();
+
+    $this->postJson('/api/v1/webhooks', ['target_url' => 'https://hooks.example.com/ok'], ['Authorization' => "Bearer {$token}"])
+        ->assertCreated();
 });

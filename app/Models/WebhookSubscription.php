@@ -16,6 +16,8 @@ class WebhookSubscription extends Model
         'submission.created',
     ];
 
+    public const MAX_ACTIVE_PER_USER = 25;
+
     protected $fillable = [
         'user_id',
         'form_id',
