@@ -10,6 +10,7 @@ use App\Models\Step;
 use App\Models\Submission;
 use App\Models\User;
 use App\Rules\ValidWebhookUrl;
+use App\Support\TokenAbility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -27,11 +28,11 @@ class McpServerService
      * @var array<string, string>
      */
     protected const TOOL_ABILITIES = [
-        'list_forms' => 'forms:read',
-        'get_form_schema' => 'forms:read',
-        'create_form' => 'forms:write',
-        'submit_form' => 'submissions:write',
-        'list_submissions' => 'submissions:read',
+        'list_forms' => TokenAbility::FormsRead->value,
+        'get_form_schema' => TokenAbility::FormsRead->value,
+        'create_form' => TokenAbility::FormsWrite->value,
+        'submit_form' => TokenAbility::SubmissionsWrite->value,
+        'list_submissions' => TokenAbility::SubmissionsRead->value,
     ];
 
     /**

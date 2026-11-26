@@ -6,14 +6,16 @@ use App\Models\Form;
 use App\Models\Step;
 use App\Models\Submission;
 use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 
 test('POST /api/v1/submissions creates a new submission', function () {
     $user = User::factory()->create();
     $form = Form::create(['name' => 'My Form', 'is_active' => true]);
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson('/api/v1/submissions', ['form_uuid' => $form->uuid])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson('/api/v1/submissions', ['form_uuid' => $form->uuid])
         ->assertCreated()
         ->assertJsonPath('data.status', 'draft')
         ->assertJsonPath('data.current_step', 1);
@@ -29,8 +31,9 @@ test('POST /api/v1/submissions requires authentication', function () {
 test('POST /api/v1/submissions returns 422 for unknown form_uuid', function () {
     $user = User::factory()->create();
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson('/api/v1/submissions', ['form_uuid' => 'does-not-exist'])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson('/api/v1/submissions', ['form_uuid' => 'does-not-exist'])
         ->assertUnprocessable();
 });
 
@@ -46,8 +49,9 @@ test('GET /api/v1/submissions/{uuid} returns submission with values map', functi
     $submission = Submission::create(['form_id' => $form->id]);
     $submission->values()->create(['field_id' => $field->id, 'value' => 'Alice']);
 
-    $this->actingAs($user, 'sanctum')
-        ->getJson("/api/v1/submissions/{$submission->uuid}")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submission->uuid}")
         ->assertOk()
         ->assertJsonPath('data.uuid', $submission->uuid)
         ->assertJsonPath('data.values.name', 'Alice');
@@ -67,8 +71,9 @@ test('PATCH /api/v1/submissions/{uuid} updates status', function () {
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
     $submission = Submission::create(['form_id' => $form->id]);
 
-    $this->actingAs($user, 'sanctum')
-        ->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'completed'])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'completed'])
         ->assertOk()
         ->assertJsonPath('data.status', 'completed');
 });
@@ -84,12 +89,13 @@ test('POST /api/v1/submissions/{uuid}/values upserts field values', function () 
     ]);
     $submission = Submission::create(['form_id' => $form->id]);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/values", [
-            'values' => [
-                ['field_code' => 'email', 'value' => 'test@example.com'],
-            ],
-        ])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+        'values' => [
+            ['field_code' => 'email', 'value' => 'test@example.com'],
+        ],
+    ])
         ->assertOk()
         ->assertJsonPath('data.values.email', 'test@example.com');
 
@@ -107,15 +113,17 @@ test('POST /api/v1/submissions/{uuid}/values upserts on second call', function (
     ]);
     $submission = Submission::create(['form_id' => $form->id]);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/values", [
-            'values' => [['field_code' => 'email', 'value' => 'first@example.com']],
-        ]);
+    Sanctum::actingAs($user, ['*']);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/values", [
-            'values' => [['field_code' => 'email', 'value' => 'updated@example.com']],
-        ])
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'email', 'value' => 'first@example.com']],
+    ]);
+
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'email', 'value' => 'updated@example.com']],
+    ])
         ->assertOk()
         ->assertJsonPath('data.values.email', 'updated@example.com');
 
@@ -130,8 +138,9 @@ test('POST /api/v1/submissions/{uuid}/advance advances the step', function () {
     Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 1]);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/advance")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/advance")
         ->assertOk()
         ->assertJsonPath('current_step', 2);
 });
@@ -142,8 +151,9 @@ test('POST /api/v1/submissions/{uuid}/advance returns 422 on last step', functio
     Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Only Step']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 1]);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/advance")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/advance")
         ->assertUnprocessable();
 });
 
@@ -154,8 +164,9 @@ test('POST /api/v1/submissions/{uuid}/retreat retreats the step', function () {
     Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
     $submission = Submission::create(['form_id' => $form->id, 'current_step' => 2]);
 
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/retreat")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/retreat")
         ->assertOk()
         ->assertJsonPath('current_step', 1);
 });
@@ -171,8 +182,9 @@ test('GET /api/v1/submissions/{uuid}/conditions returns field states', function 
     ]);
     $submission = Submission::create(['form_id' => $form->id]);
 
-    $this->actingAs($user, 'sanctum')
-        ->getJson("/api/v1/submissions/{$submission->uuid}/conditions")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submission->uuid}/conditions")
         ->assertOk()
         ->assertJsonStructure(['data' => [['field_id', 'field_code', 'is_visible', 'is_required']]]);
 });
@@ -231,40 +243,47 @@ test('cross-user tenancy authorization: User B receives 404 when attempting to a
     ]);
 
     // 1. User B GET /submissions/{uuid} -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->getJson("/api/v1/submissions/{$submissionA->uuid}")
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submissionA->uuid}")
         ->assertNotFound();
 
     // 2. User B PATCH /submissions/{uuid} -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->patchJson("/api/v1/submissions/{$submissionA->uuid}", ['status' => 'completed'])
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->patchJson("/api/v1/submissions/{$submissionA->uuid}", ['status' => 'completed'])
         ->assertNotFound();
 
     // 3. User B POST /submissions/{uuid}/values -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submissionA->uuid}/values", [
-            'values' => [['field_code' => 'ssn', 'value' => '999-99-9999']],
-        ])
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submissionA->uuid}/values", [
+        'values' => [['field_code' => 'ssn', 'value' => '999-99-9999']],
+    ])
         ->assertNotFound();
 
     // 4. User B POST /submissions/{uuid}/advance -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submissionA->uuid}/advance")
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submissionA->uuid}/advance")
         ->assertNotFound();
 
     // 5. User B POST /submissions/{uuid}/retreat -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submissionA->uuid}/retreat")
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submissionA->uuid}/retreat")
         ->assertNotFound();
 
     // 6. User B GET /submissions/{uuid}/conditions -> 404
-    $this->actingAs($userB, 'sanctum')
-        ->getJson("/api/v1/submissions/{$submissionA->uuid}/conditions")
+    Sanctum::actingAs($userB, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submissionA->uuid}/conditions")
         ->assertNotFound();
 
     // Verification: User A CAN access their own submission
-    $this->actingAs($userA, 'sanctum')
-        ->getJson("/api/v1/submissions/{$submissionA->uuid}")
+    Sanctum::actingAs($userA, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submissionA->uuid}")
         ->assertOk()
         ->assertJsonPath('data.uuid', $submissionA->uuid);
 });
@@ -335,22 +354,25 @@ test('authenticated owner can still update a draft whose form is inactive via au
     ]);
 
     // Owner can update status via authenticated route
-    $this->actingAs($user, 'sanctum')
-        ->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'completed'])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->patchJson("/api/v1/submissions/{$submission->uuid}", ['status' => 'completed'])
         ->assertOk()
         ->assertJsonPath('data.status', 'completed');
 
     // Owner can store values via authenticated route
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/values", [
-            'values' => [['field_code' => 'note', 'value' => 'Admin override']],
-        ])
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'note', 'value' => 'Admin override']],
+    ])
         ->assertOk()
         ->assertJsonPath('data.values.note', 'Admin override');
 
     // Owner can advance step via authenticated route
-    $this->actingAs($user, 'sanctum')
-        ->postJson("/api/v1/submissions/{$submission->uuid}/advance")
+    Sanctum::actingAs($user, ['*']);
+
+    $this->postJson("/api/v1/submissions/{$submission->uuid}/advance")
         ->assertOk()
         ->assertJsonPath('current_step', 2);
 });

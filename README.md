@@ -66,11 +66,13 @@ All endpoints are prefixed with `/api/v1/`.
 
 ### Authentication
 
-FlowForm uses [Laravel Sanctum](https://laravel.com/docs/sanctum) for API authentication. Generate a token:
+FlowForm uses [Laravel Sanctum](https://laravel.com/docs/sanctum) for API authentication. Create a scoped token in the admin panel under **API Tokens** (user menu), or with the CLI:
 
-```php
-$token = $user->createToken('my-app')->plainTextToken;
+```bash
+php artisan token:create my-app you@example.com --abilities=submissions:read,submissions:write
 ```
+
+Abilities: `forms:read`, `forms:write`, `submissions:read`, `submissions:write`, `webhooks:manage`. Submission reads need `submissions:read`, submission writes need `submissions:write`, and the GDPR export/erasure routes need every ability. Omitting `--abilities` creates a full-access (`*`) token, as do tokens created before abilities existed.
 
 Then pass it as a Bearer token:
 
