@@ -110,10 +110,16 @@ class SubmissionController extends Controller
         $submission = $this->resolveSubmission($uuid, $request);
         $this->ensureActiveFormForPublic($submission, $request);
 
+        $isGuest = $request->user() === null;
+
         $data = $request->validate([
-            'status' => ['sometimes', 'string', Rule::in(['draft', 'completed', 'abandoned'])],
+            'status' => ['sometimes', 'string', Rule::in($isGuest ? ['completed', 'abandoned'] : ['draft', 'completed', 'abandoned'])],
             'meta' => ['sometimes', 'nullable', 'array'],
         ]);
+
+        if ($isGuest && array_key_exists('meta', $data)) {
+            $data['meta'] = array_merge($submission->meta ?? [], $data['meta'] ?? []);
+        }
 
         $submission->update($data);
         $submission->load('form');
@@ -267,6 +273,8 @@ class SubmissionController extends Controller
                             ->whereHas('form', fn ($fq) => $fq->whereNull('user_id'));
                     });
             });
+        } else {
+            $query->where('status', 'draft')->whereNull('user_id');
         }
 
         return $query->firstOrFail();

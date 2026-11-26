@@ -376,3 +376,112 @@ test('authenticated owner can still update a draft whose form is inactive via au
         ->assertOk()
         ->assertJsonPath('current_step', 2);
 });
+
+function guestSubmissionForm(): Form
+{
+    $form = Form::create(['name' => 'Guest Form', 'is_active' => true]);
+    $step = Step::create(['form_id' => $form->id, 'step_number' => 1, 'title' => 'Step 1']);
+    Step::create(['form_id' => $form->id, 'step_number' => 2, 'title' => 'Step 2']);
+    $ft = FieldType::create(['name' => 'text', 'component' => 'text-input']);
+    Field::create([
+        'form_id' => $form->id, 'step_id' => $step->id,
+        'field_type_id' => $ft->id, 'code' => 'answer', 'label' => 'Answer', 'order' => 1,
+    ]);
+
+    return $form;
+}
+
+test('guest routes return 404 for a completed submission', function () {
+    $form = guestSubmissionForm();
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'meta' => ['ip' => '203.0.113.5']]);
+
+    $this->getJson("/api/v1/public/submissions/{$submission->uuid}")->assertNotFound();
+    $this->getJson("/api/v1/public/submissions/{$submission->uuid}/conditions")->assertNotFound();
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['status' => 'abandoned', 'meta' => []])->assertNotFound();
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/values", [
+        'values' => [['field_code' => 'answer', 'value' => 'overwritten']],
+    ])->assertNotFound();
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/advance")->assertNotFound();
+    $this->postJson("/api/v1/public/submissions/{$submission->uuid}/retreat")->assertNotFound();
+
+    $submission->refresh();
+    expect($submission->status)->toBe('completed')
+        ->and($submission->meta)->toBe(['ip' => '203.0.113.5'])
+        ->and($submission->values()->count())->toBe(0);
+});
+
+test('guest routes return 404 for a headless endpoint submission', function () {
+    Form::create(['name' => 'Contact', 'slug' => 'contact-guest', 'type' => 'endpoint', 'is_active' => true]);
+
+    $uuid = $this->postJson('/api/v1/f/contact-guest', ['email' => 'a@example.com', 'message' => 'hi'])
+        ->assertOk()
+        ->json('id');
+
+    expect($uuid)->toBeString();
+    $this->getJson("/api/v1/public/submissions/{$uuid}")->assertNotFound();
+});
+
+test('guest routes return 404 for a draft owned by an authenticated user', function () {
+    $form = guestSubmissionForm();
+    $user = User::factory()->create();
+    $submission = Submission::create(['form_id' => $form->id, 'user_id' => $user->id, 'status' => 'draft']);
+
+    $this->getJson("/api/v1/public/submissions/{$submission->uuid}")->assertNotFound();
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['status' => 'completed'])->assertNotFound();
+});
+
+test('encrypted submission is not returned to a guest once completed', function () {
+    $form = guestSubmissionForm();
+    $form->update(['is_encrypted' => true]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'is_encrypted' => true, 'data' => ['secret' => 'value']]);
+
+    $this->getJson("/api/v1/public/submissions/{$submission->uuid}")->assertNotFound();
+});
+
+test('guest PATCH merges meta instead of replacing it and cannot reopen a draft', function () {
+    $form = guestSubmissionForm();
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'draft', 'meta' => ['source' => 'landing']]);
+
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['status' => 'draft'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['status']);
+
+    $this->patchJson("/api/v1/public/submissions/{$submission->uuid}", ['meta' => ['utm' => 'x']])->assertOk();
+
+    expect($submission->fresh()->meta)->toBe(['source' => 'landing', 'utm' => 'x']);
+});
+
+test('guest multi-step happy path still works and the submission closes after completion', function () {
+    $form = guestSubmissionForm();
+
+    $uuid = $this->postJson('/api/v1/public/submissions', ['form_uuid' => $form->uuid])
+        ->assertCreated()
+        ->json('data.uuid');
+
+    $this->postJson("/api/v1/public/submissions/{$uuid}/values", [
+        'values' => [['field_code' => 'answer', 'value' => 'yes']],
+    ])->assertOk();
+    $this->getJson("/api/v1/public/submissions/{$uuid}")->assertOk()->assertJsonPath('data.values.answer', 'yes');
+    $this->getJson("/api/v1/public/submissions/{$uuid}/conditions")->assertOk();
+    $this->postJson("/api/v1/public/submissions/{$uuid}/advance")->assertOk()->assertJsonPath('current_step', 2);
+    $this->postJson("/api/v1/public/submissions/{$uuid}/retreat")->assertOk()->assertJsonPath('current_step', 1);
+    $this->patchJson("/api/v1/public/submissions/{$uuid}", ['status' => 'completed'])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'completed');
+
+    $this->getJson("/api/v1/public/submissions/{$uuid}")->assertNotFound();
+});
+
+test('owner can still read and update a completed submission via authenticated routes', function () {
+    $user = User::factory()->create();
+    $form = guestSubmissionForm();
+    $form->update(['user_id' => $user->id]);
+    $submission = Submission::create(['form_id' => $form->id, 'status' => 'completed', 'meta' => ['ip' => '203.0.113.5']]);
+
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson("/api/v1/submissions/{$submission->uuid}")->assertOk();
+    $this->patchJson("/api/v1/submissions/{$submission->uuid}", ['meta' => ['note' => 'x']])->assertOk();
+
+    expect($submission->fresh()->meta)->toBe(['note' => 'x']);
+});
