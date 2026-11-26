@@ -155,21 +155,19 @@ test('queued SubmissionReceived falls back to .env mailer when no active MailSet
     $mailable->send($factory);
 });
 
-test('dynamic mailer keeps provider credentials on the mailer, not global services config', function (string $driver, array $attributes, array $expected) {
-    config(['services.ses.key' => 'env-ses-key', 'services.postmark.token' => 'env-pm', 'services.resend.key' => 'env-resend']);
+test('dynamic mailer keeps provider credentials on the mailer, not global mail config', function (string $driver, array $attributes, array $expected) {
+    config(['mail.mailers.smtp.host' => 'env-smtp-host', 'mail.mailers.smtp.username' => 'env-smtp-user']);
 
     (new MailSetting(['driver' => $driver, 'is_active' => true] + $attributes))->applyDynamicMailer('flowform');
 
     foreach ($expected as $key => $value) {
         expect(config("mail.mailers.flowform.{$key}"))->toBe($value);
     }
-    expect(config('services.ses.key'))->toBe('env-ses-key');
-    expect(config('services.postmark.token'))->toBe('env-pm');
-    expect(config('services.resend.key'))->toBe('env-resend');
+    expect(config('mail.mailers.smtp.host'))->toBe('env-smtp-host');
+    expect(config('mail.mailers.smtp.username'))->toBe('env-smtp-user');
 })->with([
-    'ses' => ['ses', ['username' => 'AKIA1', 'password' => 'sec', 'region' => 'eu-west-1'], ['transport' => 'ses', 'key' => 'AKIA1', 'secret' => 'sec', 'region' => 'eu-west-1']],
-    'resend' => ['resend', ['api_key' => 're_1'], ['transport' => 'resend', 'key' => 're_1']],
-    'postmark' => ['postmark', ['api_key' => 'pm_1'], ['transport' => 'postmark', 'token' => 'pm_1']],
+    'smtp' => ['smtp', ['host' => 'smtp.resend.com', 'port' => 587, 'encryption' => 'tls', 'username' => 'resend', 'password' => 're_1'], ['transport' => 'smtp', 'host' => 'smtp.resend.com', 'port' => 587, 'encryption' => 'tls', 'username' => 'resend', 'password' => 're_1']],
+    'log' => ['log', [], ['transport' => 'log']],
 ]);
 
 test('dynamic smtp mailer never inherits MAIL_URL', function () {
@@ -203,11 +201,61 @@ test('Livewire selects other presets and pre-fills appropriate values', function
 })->with([
     'mailgun' => ['mailgun', ['driver' => 'smtp', 'host' => 'smtp.mailgun.org', 'port' => 587, 'encryption' => 'tls']],
     'smtp2go' => ['smtp2go', ['driver' => 'smtp', 'host' => 'mail.smtp2go.com', 'port' => 587, 'encryption' => 'tls']],
-    'resend' => ['resend', ['driver' => 'resend']],
-    'postmark' => ['postmark', ['driver' => 'postmark']],
-    'ses' => ['ses', ['driver' => 'ses']],
+    'resend' => ['resend', ['driver' => 'smtp', 'host' => 'smtp.resend.com', 'port' => 587, 'encryption' => 'tls']],
+    'postmark' => ['postmark', ['driver' => 'smtp', 'host' => 'smtp.postmarkapp.com', 'port' => 587, 'encryption' => 'tls']],
+    'ses' => ['ses', ['driver' => 'smtp', 'host' => 'email-smtp.us-east-1.amazonaws.com', 'port' => 587, 'encryption' => 'tls']],
     'generic' => ['smtp', ['driver' => 'smtp', 'host' => '', 'port' => 587, 'encryption' => 'tls']],
+    'log' => ['log', ['driver' => 'log', 'host' => '']],
 ]);
+
+test('Livewire detectPreset recognises resend, postmarkapp, and amazonaws SMTP hosts', function (string $host, string $expectedPreset) {
+    MailSetting::query()->delete();
+    MailSetting::create([
+        'driver' => 'smtp',
+        'host' => $host,
+        'port' => 587,
+        'encryption' => 'tls',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+    Livewire::test(MailSettingsPage::class)
+        ->assertSet('preset', $expectedPreset);
+})->with([
+    'resend' => ['smtp.resend.com', 'resend'],
+    'postmark' => ['smtp.postmarkapp.com', 'postmark'],
+    'ses' => ['email-smtp.eu-west-1.amazonaws.com', 'ses'],
+]);
+
+test('saving MailSettingsPage rejects legacy API drivers', function (string $driver) {
+    MailSetting::query()->delete();
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+    Livewire::test(MailSettingsPage::class)
+        ->set('driver', $driver)
+        ->call('save')
+        ->assertHasErrors(['driver']);
+
+    expect(MailSetting::count())->toBe(0);
+})->with(['ses', 'resend', 'postmark']);
+
+test('migration deactivates existing ses, resend, and postmark mail_settings rows', function () {
+    MailSetting::query()->delete();
+
+    $ses = MailSetting::create(['driver' => 'ses', 'is_active' => true]);
+    $resend = MailSetting::create(['driver' => 'resend', 'is_active' => true]);
+    $postmark = MailSetting::create(['driver' => 'postmark', 'is_active' => true]);
+    $smtp = MailSetting::create(['driver' => 'smtp', 'host' => 'smtp.resend.com', 'is_active' => true]);
+
+    $migration = require database_path('migrations/2026_10_27_110000_deactivate_unsupported_mail_drivers.php');
+    $migration->up();
+
+    expect($ses->fresh()->is_active)->toBeFalse()
+        ->and($resend->fresh()->is_active)->toBeFalse()
+        ->and($postmark->fresh()->is_active)->toBeFalse()
+        ->and($smtp->fresh()->is_active)->toBeTrue();
+});
 
 test('SubmissionReceived envelope sets replyTo from email', function () {
     $form = Form::create([

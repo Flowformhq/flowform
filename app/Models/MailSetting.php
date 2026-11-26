@@ -101,20 +101,6 @@ class MailSetting extends Model
                 'timeout' => null,
                 'local_domain' => config('mail.mailers.smtp.local_domain'),
             ],
-            'ses' => [
-                'transport' => 'ses',
-                'key' => $this->username,
-                'secret' => $this->password,
-                'region' => $this->region ?: 'us-east-1',
-            ],
-            'resend' => [
-                'transport' => 'resend',
-                'key' => $this->api_key,
-            ],
-            'postmark' => [
-                'transport' => 'postmark',
-                'token' => $this->api_key,
-            ],
             default => [
                 'transport' => 'log',
                 'channel' => config('mail.mailers.log.channel'),
@@ -165,29 +151,6 @@ class MailSetting extends Model
                     'mail.mailers.smtp.encryption' => $this->encryption ?: 'tls',
                     'mail.mailers.smtp.username' => $this->username,
                     'mail.mailers.smtp.password' => $this->password,
-                ]);
-                break;
-
-            case 'ses':
-                config([
-                    'mail.default' => 'ses',
-                    'services.ses.key' => $this->username,
-                    'services.ses.secret' => $this->password,
-                    'services.ses.region' => $this->region ?: 'us-east-1',
-                ]);
-                break;
-
-            case 'resend':
-                config([
-                    'mail.default' => 'resend',
-                    'resend.api_key' => $this->api_key,
-                ]);
-                break;
-
-            case 'postmark':
-                config([
-                    'mail.default' => 'postmark',
-                    'services.postmark.token' => $this->api_key,
                 ]);
                 break;
 

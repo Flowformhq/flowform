@@ -78,7 +78,7 @@ class FormForm
                 TextInput::make('allowed_domains')
                     ->label('Allowed Domain Origins (Spam & Hijack Protection)')
                     ->placeholder('e.g. yourdomain.com, *.yourdomain.com')
-                    ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin.')
+                    ->helperText('Optional comma-separated domains allowed to submit. Leave blank to accept from any origin. Also used to allow _next redirects to these domains.')
                     ->visible(fn ($get) => $get('type') === 'endpoint'),
                 Select::make('captcha_provider')
                     ->label('Bot Protection (Captcha)')
@@ -102,6 +102,12 @@ class FormForm
                     ->required(fn ($get) => ! empty($get('captcha_provider')))
                     ->helperText('Encrypted at rest. Never exposed to clients or APIs.')
                     ->visible(fn ($get) => $get('type') === 'endpoint' && ! empty($get('captcha_provider'))),
+                Toggle::make('endpoint_secret_required')
+                    ->label('Require server secret')
+                    ->helperText('Reject endpoint submissions without a valid X-FlowForm-Secret header or _secret query parameter. Generate a server secret first.')
+                    ->default(false)
+                    ->disabled(fn (?Form $record): bool => ! $record?->hasEndpointSecret())
+                    ->visible(fn ($get) => $get('type') === 'endpoint'),
                 TextInput::make('webhook_url')
                     ->label('Outbound Webhook URL (Zapier, Make, n8n, Custom API)')
                     ->placeholder('https://api.yourdomain.com/webhooks/intake')
