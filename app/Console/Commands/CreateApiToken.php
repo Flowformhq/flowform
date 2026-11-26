@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 
 class CreateApiToken extends Command
 {
-    protected $signature = 'token:create {name=astro-client} {email?} {--abilities= : Comma-separated token abilities (defaults to wildcard *)}';
+    protected $signature = 'token:create {name=astro-client} {email?} {--abilities= : Comma-separated token abilities (defaults to wildcard *)} {--expires= : Token expiration in days (positive integer; defaults to no expiry)}';
 
     protected $description = 'Create a Sanctum API token for headless client authentication';
 
@@ -32,10 +32,18 @@ class CreateApiToken extends Command
             return self::FAILURE;
         }
 
-        $tokenName = (string) $this->argument('name');
-        $token = $user->createToken($tokenName, $abilities)->plainTextToken;
+        $expiresAt = $tokenService->parseExpiresDaysOption($this->option('expires'));
+        if ($expiresAt === false) {
+            $this->error('Invalid --expires value. Provide a positive whole number of days (e.g. --expires=30).');
 
-        $this->info("Token created successfully for {$user->email} (abilities: ".implode(', ', $abilities).'):');
+            return self::FAILURE;
+        }
+
+        $tokenName = (string) $this->argument('name');
+        $token = $user->createToken($tokenName, $abilities, $expiresAt)->plainTextToken;
+
+        $expirySummary = $expiresAt ? $expiresAt->toIso8601String() : 'never';
+        $this->info("Token created successfully for {$user->email} (abilities: ".implode(', ', $abilities).", expires: {$expirySummary}):");
         $this->line($token);
 
         return self::SUCCESS;

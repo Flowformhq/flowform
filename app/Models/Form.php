@@ -351,7 +351,9 @@ class Form extends Model
 
     public function stepCount(): int
     {
-        return $this->steps()->count();
+        return $this->relationLoaded('steps')
+            ? $this->steps->count()
+            : $this->steps()->count();
     }
 
     public function reorderSteps(array $stepIds): void

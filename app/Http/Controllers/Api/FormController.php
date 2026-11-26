@@ -8,28 +8,41 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\FormResource;
 use App\Http\Resources\Api\FormSchemaResource;
 use App\Models\Form;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
  * @group Forms
  *
- * Public endpoints for browsing forms and fetching form schemas.
- * No authentication required.
+ * Endpoints for browsing active public forms, listing the authenticated owner's forms, and fetching form schemas.
  */
 class FormController extends Controller
 {
     /**
-     * List active forms
+     * List forms
      *
-     * Returns a paginated list of all active forms.
+     * Returns active public forms when called without a bearer token, or all forms owned by the authenticated token user when called with a bearer token carrying the `forms:read` ability.
      *
      * @queryParam page integer The page number. Example: 1
+     * @queryParam per_page integer Number of forms per page (1-100, default 15). Example: 15
      *
      * @response 200 scenario="success" {"data":[{"uuid":"9e1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c","name":"Contact Us","slug":"contact-us","description":"A simple contact form","is_active":true,"version":1,"created_at":"2026-04-08T00:00:00.000000Z"}],"links":{},"meta":{"current_page":1,"last_page":1,"per_page":15,"total":1}}
+     * @response 401 scenario="invalid token" {"message":"Unauthenticated."}
+     * @response 403 scenario="missing forms:read ability" {"message":"Invalid ability provided."}
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        return FormResource::collection(Form::active()->paginate(15));
+        $perPage = min(max($request->integer('per_page', 15), 1), 100);
+
+        if ($user = $request->user()) {
+            return FormResource::collection(
+                Form::where('user_id', $user->id)
+                    ->latest('id')
+                    ->paginate($perPage)
+            );
+        }
+
+        return FormResource::collection(Form::active()->paginate($perPage));
     }
 
     /**
