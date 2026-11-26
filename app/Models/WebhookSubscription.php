@@ -87,6 +87,28 @@ class WebhookSubscription extends Model
         return $query->where('is_active', true)->whereNull('disabled_at');
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->is_admin) {
+            return $query;
+        }
+
+        return $query->where('user_id', $user->id);
+    }
+
+    public function targetHost(): string
+    {
+        return (string) (parse_url($this->target_url, PHP_URL_HOST) ?: $this->target_url);
+    }
+
     public function supportsEvent(string $event): bool
     {
         return in_array($event, (array) ($this->events ?? []), true);
