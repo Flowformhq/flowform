@@ -5,7 +5,6 @@ use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\McpController;
 use App\Http\Controllers\Api\PublicEndpointController;
 use App\Http\Controllers\Api\SubmissionController;
-use App\Http\Middleware\EnsureComplianceAccess;
 use App\Support\TokenAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -53,7 +52,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // GDPR & HIPAA Compliance API
-        Route::middleware(EnsureComplianceAccess::class)->group(function () {
+        Route::middleware('abilities:'.implode(',', TokenAbility::values()))->group(function () {
             Route::get('compliance/gdpr/export', [ComplianceController::class, 'export'])
                 ->name('api.compliance.gdpr.export');
             Route::post('compliance/gdpr/erasure', [ComplianceController::class, 'erasure'])
