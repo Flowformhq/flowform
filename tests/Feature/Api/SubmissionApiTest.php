@@ -485,3 +485,24 @@ test('owner can still read and update a completed submission via authenticated r
 
     expect($submission->fresh()->meta)->toBe(['note' => 'x']);
 });
+
+test('public routes apply guest scoping even when a user is authenticated', function () {
+    $user = User::factory()->create();
+    $form = guestSubmissionForm();
+    $form->update(['user_id' => $user->id]);
+    $completed = Submission::create(['form_id' => $form->id, 'user_id' => $user->id, 'status' => 'completed']);
+
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson("/api/v1/public/submissions/{$completed->uuid}")->assertNotFound();
+    $this->patchJson("/api/v1/public/submissions/{$completed->uuid}", ['status' => 'draft'])->assertNotFound();
+
+    $uuid = $this->postJson('/api/v1/public/submissions', ['form_uuid' => $form->uuid])
+        ->assertCreated()
+        ->json('data.uuid');
+
+    expect(Submission::where('uuid', $uuid)->value('user_id'))->toBeNull();
+    $this->getJson("/api/v1/public/submissions/{$uuid}")->assertOk();
+    $this->patchJson("/api/v1/public/submissions/{$uuid}", ['status' => 'draft'])->assertUnprocessable();
+    expect($completed->fresh()->status)->toBe('completed');
+});

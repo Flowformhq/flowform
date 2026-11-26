@@ -51,7 +51,7 @@ class SubmissionController extends Controller
 
         $submission = Submission::create([
             'form_id' => $form->id,
-            'user_id' => $request->user()?->id,
+            'user_id' => $this->isGuestRequest($request) ? null : $request->user()?->id,
             'status' => 'draft',
             'current_step' => 1,
         ]);
@@ -110,7 +110,7 @@ class SubmissionController extends Controller
         $submission = $this->resolveSubmission($uuid, $request);
         $this->ensureActiveFormForPublic($submission, $request);
 
-        $isGuest = $request->user() === null;
+        $isGuest = $this->isGuestRequest($request);
 
         $data = $request->validate([
             'status' => ['sometimes', 'string', Rule::in($isGuest ? ['completed', 'abandoned'] : ['draft', 'completed', 'abandoned'])],
@@ -261,8 +261,9 @@ class SubmissionController extends Controller
     {
         $query = Submission::where('uuid', $uuid);
 
-        // When accessed via authenticated API routes, enforce object-level tenancy authorization
-        if ($user = $request->user()) {
+        $user = $this->isGuestRequest($request) ? null : $request->user();
+
+        if ($user) {
             $query->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                     ->orWhereHas('form', function ($formQuery) use ($user) {
@@ -280,9 +281,15 @@ class SubmissionController extends Controller
         return $query->firstOrFail();
     }
 
+    // Keyed on the route, not on $request->user(), so a session or token user reaching a public route still gets guest scoping.
+    protected function isGuestRequest(Request $request): bool
+    {
+        return $request->is('api/v1/public/*');
+    }
+
     protected function ensureActiveFormForPublic(Submission $submission, Request $request): void
     {
-        if (! $request->user() && ! $submission->form->is_active) {
+        if ($this->isGuestRequest($request) && ! $submission->form->is_active) {
             abort(422, 'This form is currently inactive.');
         }
     }
